@@ -10,6 +10,7 @@ bez da izgubi kontekst.
 - Primarna tablespace navigacija za gotove radove (do 3 stupca).
 - Vertikalna mapa “Raja → Pakao” s punim popisom tema, mikro-manuskripata i eseja.
 - Memoria Maris: 9 činova × 4 scene, svaki čin personificiran.
+- Memoria Maris poglavlje s lokalnim audio/cover placeholderima i dvo-stupčastom analizom.
 - Filozofski blok (Schopenhauer, Mainländer, moja filozofija).
 - “Svi projekti” podstranica s tri stupca dubine.
 - Footer s linkovima na blog i store.

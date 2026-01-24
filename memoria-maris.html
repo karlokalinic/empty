@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="hr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Memoria Maris — Poglavlje</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Cormorant+Garamond:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="hero hero--compact hero--maritime">
+      <div class="hero__copy">
+        <p class="hero__eyebrow">Eter / Memoria Maris</p>
+        <h1>Memoria Maris</h1>
+        <p class="hero__lead">
+          Klikni na cover ili na pojedini stih: otvara se analiza desno. Hover daje morski oblačić,
+          a klik vodi prema objašnjenju.
+        </p>
+        <div class="hero__cta">
+          <a class="button" href="index.html">Natrag na početak</a>
+          <a class="button button--ghost" href="#lyrics">Spusti se na lyrics</a>
+        </div>
+      </div>
+      <aside class="hero__nav">
+        <div class="depth-gauge depth-gauge--static">
+          <span>Memoria</span>
+          <span>Sirena</span>
+          <span>Gusar</span>
+          <span>Jelen</span>
+          <span>Monstrum</span>
+          <span>Božica</span>
+          <span>Mjesec</span>
+          <span>More</span>
+          <span>Maris</span>
+        </div>
+        <p class="hero__note">Maritimna estetika: sol, platno, jedra, ritam.</p>
+      </aside>
+    </header>
+
+    <main class="section" id="lyrics">
+      <div class="track-layout">
+        <section class="track-panel">
+          <a class="cover-card" href="#analysis-1">
+            <img src="media/memoria-maris-cover.jpg" alt="Memoria Maris cover art" />
+            <div class="cover-card__overlay">
+              <span>Click / Open</span>
+            </div>
+          </a>
+          <div class="audio-box">
+            <audio controls>
+              <source src="media/memoria-maris.mp3" type="audio/mpeg" />
+              Vaš preglednik ne podržava audio.
+            </audio>
+            <p class="audio-box__note">Lokalni audio: media/memoria-maris.mp3</p>
+          </div>
+          <ul class="lyrics">
+            <li>
+              <a href="#analysis-1" class="lyric-line" data-tooltip="Klikni za analizu.">
+                More je moja grobnica, a jedro moja koža.
+              </a>
+            </li>
+            <li>
+              <a href="#analysis-2" class="lyric-line" data-tooltip="Klikni za analizu.">
+                Sirena me zove, ali Gusar mi drži kompas.
+              </a>
+            </li>
+            <li>
+              <a href="#analysis-3" class="lyric-line" data-tooltip="Klikni za analizu.">
+                Jelen u magli trči, nosi moj stari glas.
+              </a>
+            </li>
+            <li>
+              <a href="#analysis-4" class="lyric-line" data-tooltip="Klikni za analizu.">
+                Mjesec mi piše posvetu, more je šapuće.
+              </a>
+            </li>
+          </ul>
+        </section>
+
+        <aside class="track-panel track-panel--analysis">
+          <div class="analysis" id="analysis-1">
+            <h2>Analiza 01</h2>
+            <p class="analysis__lyric">“More je moja grobnica, a jedro moja koža.”</p>
+            <p>
+              Prva slika otvara autobiografiju: more kao arhiv, jedro kao osobna granica — sve je
+              upisano u teksturu tijela.
+            </p>
+          </div>
+          <div class="analysis" id="analysis-2">
+            <h2>Analiza 02</h2>
+            <p class="analysis__lyric">“Sirena me zove, ali Gusar mi drži kompas.”</p>
+            <p>
+              Sirena je ovisnost, Gusar je povijest — kompas je jedini instrument discipline u oluji.
+            </p>
+          </div>
+          <div class="analysis" id="analysis-3">
+            <h2>Analiza 03</h2>
+            <p class="analysis__lyric">“Jelen u magli trči, nosi moj stari glas.”</p>
+            <p>
+              Jelen je figura bijega i mira; stari glas je trag onoga što sam bio prije iskrenosti.
+            </p>
+          </div>
+          <div class="analysis" id="analysis-4">
+            <h2>Analiza 04</h2>
+            <p class="analysis__lyric">“Mjesec mi piše posvetu, more je šapuće.”</p>
+            <p>
+              Mjesec predstavlja psihologa u motivaciji i zahvali — more postaje pripovjedač koji
+              prenosi posvetu.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div>
+        <h2>Maritimna linija</h2>
+        <p>Svaki stih je sidro, svaki klik je mapa.</p>
+      </div>
+      <div class="footer__links">
+        <a href="index.html">Početna</a>
+        <a href="iceberg.html">Svi projekti</a>
+        <a href="https://blog.karolegend.com">blog.karolegend.com</a>
+      </div>
+    </footer>
+  </body>
+</html>
