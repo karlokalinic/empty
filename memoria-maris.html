@@ -11,6 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
   </head>
   <body>
     <header class="hero hero--compact hero--maritime">
@@ -45,6 +46,12 @@
     <main class="section" id="lyrics">
       <div class="track-layout">
         <section class="track-panel">
+          <div class="synesthetic" data-synesthetic>
+            <div class="synesthetic__sky"></div>
+            <div class="synesthetic__sun"></div>
+            <div class="synesthetic__wave"></div>
+            <div class="synesthetic__rabbit">🐇</div>
+          </div>
           <a class="cover-card" href="#analysis-1">
             <img src="media/memoria-maris-cover.jpg" alt="Memoria Maris cover art" />
             <div class="cover-card__overlay">
@@ -52,7 +59,7 @@
             </div>
           </a>
           <div class="audio-box">
-            <audio controls>
+            <audio controls data-synesthetic-audio>
               <source src="media/memoria-maris.mp3" type="audio/mpeg" />
               Vaš preglednik ne podržava audio.
             </audio>

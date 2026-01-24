@@ -14,13 +14,13 @@ bez da izgubi kontekst.
 - Filozofski blok (Schopenhauer, Mainländer, moja filozofija).
 - “Svi projekti” podstranica s tri stupca dubine.
 - Footer s linkovima na blog i store.
+- Web Animations API prototip: synesthetic player (sunset + bijeli zec) vezan uz audio output.
+- Dinamičan visinomjer koji mapira scroll na metrički raspon (bez hard-coded brojeva).
 
 ## To-do (sljedeće faze)
 1. **Web Animations API (bez 3rd party)**
    - Synesthetic Player: tipografija (italic/bold/size) sinkronizirana s audio outputom.
-   - “Bijeli zec” + zalazak sunca animirani uz wave/FFT iz audio elementa.
 2. **Raja → Pakao vizual**
-   - Dinamičan visinomjer koji mapira scroll na metrički raspon (bez hard-coded brojeva).
    - “Unrolling Earth” koncept (ako izvedivo samo HTML/CSS/JS bez dodatnih datoteka).
 3. **Manuskripti i mikro-dosjei**
    - Zrakoperka: profile likova, didaskalije, motivacije (linkovi u tekstu).
