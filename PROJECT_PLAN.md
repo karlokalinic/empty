@@ -16,6 +16,7 @@ bez da izgubi kontekst.
 - Footer s linkovima na blog i store.
 - Web Animations API prototip: synesthetic player (sunset + bijeli zec) vezan uz audio output.
 - Dinamičan visinomjer koji mapira scroll na metrički raspon (bez hard-coded brojeva).
+- Binary Duality poglavlje (0/1, True/False, To Be/Not To Be) kao samostalna stranica.
 
 ## To-do (sljedeće faze)
 1. **Web Animations API (bez 3rd party)**

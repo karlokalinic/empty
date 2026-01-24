@@ -563,3 +563,145 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.binary-body {
+  background: #04060d;
+  color: var(--text);
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.binary-stage {
+  width: min(1100px, 90vw);
+  display: grid;
+  gap: 3rem;
+  padding: 4rem 0;
+}
+
+.binary-header {
+  text-align: center;
+}
+
+.binary-header__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.binary-header h1 {
+  font-family: "Playfair Display", serif;
+  font-size: clamp(2.6rem, 4vw, 3.8rem);
+  margin-bottom: 1rem;
+}
+
+.binary-header__lead {
+  color: var(--muted);
+  max-width: 60ch;
+  margin: 0 auto;
+}
+
+.binary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.binary-panel {
+  border-radius: 1.4rem;
+  padding: 2.5rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.binary-panel__symbol {
+  font-family: "JetBrains Mono", monospace;
+  font-size: clamp(5rem, 8vw, 7rem);
+  letter-spacing: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.binary-panel h2 {
+  font-family: "Playfair Display", serif;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.binary-panel p {
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.binary-panel__details {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2rem;
+}
+
+.binary-panel__details span {
+  border: 1px solid var(--border);
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+}
+
+.binary-panel--zero {
+  background: linear-gradient(160deg, rgba(12, 16, 28, 0.95), rgba(6, 8, 14, 1));
+}
+
+.binary-panel--one {
+  background: linear-gradient(160deg, rgba(40, 10, 14, 0.9), rgba(10, 6, 12, 1));
+}
+
+.binary-axis {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  align-items: center;
+}
+
+.binary-axis__line {
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(98, 245, 255, 0.6));
+}
+
+.binary-axis__labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.2rem;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.binary-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 2rem;
+}
+
+@media (max-width: 900px) {
+  .binary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .binary-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
