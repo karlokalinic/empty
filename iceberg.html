@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Svi projekti — Raja do Pakla</title>
+    <title>Svi projekti — Dubinski prikaz</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,132 +13,93 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="hero">
+    <header class="hero hero--compact">
       <div class="hero__copy">
-        <p class="hero__eyebrow">Svi projekti / Vertikalna navigacija</p>
-        <h1>Raja → Pakla</h1>
+        <p class="hero__eyebrow">Svi projekti / Dubinski prikaz</p>
+        <h1>Raja → Pakao (cjelokupni katalog)</h1>
         <p class="hero__lead">
-          Ovdje se svi projekti raspoređuju po dubini: površno, društveno, psihološko, sirovo.
-          Prikaz je linearni “spust” — od svjetla prema magmi.
+          Ovaj prikaz sadrži sve mikro-manuskripte, likove, pojmove, mjesta i eseje. Dubina se
+          povećava s količinom sadržaja — što je lista dulja, to je put dublji.
         </p>
         <div class="hero__cta">
           <a class="button" href="index.html">Natrag na početak</a>
-          <a class="button button--ghost" href="#spust">Kreni u spust</a>
+          <a class="button button--ghost" href="#katalog">Kreni u katalog</a>
         </div>
       </div>
       <aside class="hero__nav">
-        <div class="depth-gauge">
-          <span>Raja</span>
-          <span>Grad</span>
-          <span>Podzemlje</span>
+        <div class="depth-gauge depth-gauge--static">
+          <span>Raj</span>
+          <span>Planine</span>
+          <span>Tlo</span>
+          <span>Špilje</span>
+          <span>Jezgra</span>
           <span>Pakao</span>
         </div>
-        <p class="hero__note">Klik na projekt otvara manuskript (placeholder).</p>
+        <p class="hero__note">Svaki unos je najmanja jedinica — bez implementacije, ali spremno za rast.</p>
       </aside>
     </header>
 
-    <main id="spust">
-      <section class="layer layer--eter">
-        <div class="layer__title">
-          <h2>Raja — površan sjaj</h2>
-          <p>Snippets, vizuali, lagani projekti.</p>
-        </div>
-        <div class="grid">
-          <article class="card">
-            <h3>Web UI Experiments</h3>
-            <p>Animacije, mikrointerakcije, tipografske igre.</p>
-          </article>
-          <article class="card">
-            <h3>Memoria Maris: Gusar</h3>
-            <p>Lyrics, audio, cover art.</p>
-          </article>
-          <article class="card">
-            <h3>Certifikati &amp; diplome</h3>
-            <p>Dokazi profesionalne discipline.</p>
-          </article>
-        </div>
-      </section>
+    <main id="katalog" class="section section--depth">
+      <div class="section__title">
+        <h2>Dubinski popis</h2>
+        <p>
+          Lijevo su površni i prezentacijski, desno najdublji biografski i umjetnički projekti.
+          Struktura je namjerno vertikalna, bez horizontalnog rasipanja.
+        </p>
+      </div>
 
-      <section class="layer layer--tlo">
-        <div class="layer__title">
-          <h2>Grad — društvene strukture</h2>
-          <p>Drama, eseji, sociološke teme.</p>
+      <div class="iceberg">
+        <div class="iceberg__column">
+          <h3>Plićak</h3>
+          <ul>
+            <li>Web UI Experiments</li>
+            <li>Word Processor App</li>
+            <li>Synesthetic Player (Web)</li>
+            <li>Board Game Designs</li>
+            <li>Certifikati &amp; diplome</li>
+          </ul>
         </div>
-        <div class="grid">
-          <article class="card">
-            <h3>Marija (Zrakoperka)</h3>
-            <p>Profil lika + manuskript.</p>
-          </article>
-          <article class="card">
-            <h3>Treći svjetski rat (Zrakoperka)</h3>
-            <p>Fikcijska kronologija i motivacije.</p>
-          </article>
-          <article class="card">
-            <h3>Cenzura (esej)</h3>
-            <p>Psihologija, sociologija, filozofija.</p>
-          </article>
+        <div class="iceberg__column">
+          <h3>Srednja dubina</h3>
+          <ul>
+            <li>Memoria Maris — 9 činova × 4 scene</li>
+            <li>Gusar (Memoria Maris) — autobiografija</li>
+            <li>Sirena (Memoria Maris) — ovisnost</li>
+            <li>Mjesec (Memoria Maris) — motivacija i posveta</li>
+            <li>Zrakoperka — manuskript + didaskalije</li>
+            <li>Marija (Zrakoperka) — profil lika</li>
+            <li>Treći svjetski rat (Zrakoperka) — lore</li>
+            <li>Video Ponor (novella)</li>
+            <li>Hebrili Horor (novella)</li>
+          </ul>
         </div>
-      </section>
-
-      <section class="layer layer--korijenje">
-        <div class="layer__title">
-          <h2>Podzemlje — psiha i mehanika</h2>
-          <p>Igre na sreću, ovisnosti, kognicija.</p>
+        <div class="iceberg__column">
+          <h3>Dubina</h3>
+          <ul>
+            <li>Roditelji XY (esej)</li>
+            <li>Cenzura (esej)</li>
+            <li>Amfetamin (ovisnost)</li>
+            <li>Remek djelo (ovisnost, esej, lirika)</li>
+            <li>Digitalna forenzika (esej)</li>
+            <li>Kognitivne pristranosti modernog doba</li>
+            <li>Reprogramiranje mozga</li>
+            <li>Anatomija bijele laži</li>
+            <li>Tikovi</li>
+            <li>The Substance (recenzija filma)</li>
+          </ul>
         </div>
-        <div class="grid">
-          <article class="card">
-            <h3>Slot Game Design</h3>
-            <p>UI simulator + dokumenti + narativ.</p>
-          </article>
-          <article class="card">
-            <h3>Kognitivne pristranosti modernog doba</h3>
-            <p>Uzorci pogrešaka i kratice uma.</p>
-          </article>
-          <article class="card">
-            <h3>Reprogramiranje mozga</h3>
-            <p>Tehnike, testovi, protokoli.</p>
-          </article>
-          <article class="card">
-            <h3>Anatomija bijele laži</h3>
-            <p>Što laž čini nevinom?</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="layer layer--jezgra">
-        <div class="layer__title">
-          <h2>Pakao — jezgra iskrenosti</h2>
-          <p>Najdublji eseji, intimne teme, manifest.</p>
-        </div>
-        <div class="grid">
-          <article class="card">
-            <h3>Roditelji XY</h3>
-            <p>Najintimniji esej. Fokus na odnos i ambivalenciju.</p>
-          </article>
-          <article class="card">
-            <h3>Amfetamin (ovisnost)</h3>
-            <p>Kemija + osjećaj + oporavak.</p>
-          </article>
-          <article class="card">
-            <h3>Remek djelo</h3>
-            <p>Ovisnost × esej × lirika.</p>
-          </article>
-          <article class="card">
-            <h3>Manifest &amp; cijena korištenja</h3>
-            <p>Neanonimnost kao valuta pristupa.</p>
-          </article>
-        </div>
-      </section>
+      </div>
     </main>
 
     <footer class="footer">
       <div>
         <h2>Povratak na početak</h2>
-        <p>Stranica je živa mapa — svaki čvor vodi dublje.</p>
+        <p>Stranica je mapa: svaki unos je sjeme za kasniju implementaciju.</p>
       </div>
       <div class="footer__links">
         <a href="index.html">Početna</a>
-        <a href="#spust">Spust</a>
+        <a href="https://blog.karolegend.com">blog.karolegend.com</a>
+        <a href="https://store.karolegend.com">store.karolegend.com</a>
       </div>
     </footer>
   </body>
