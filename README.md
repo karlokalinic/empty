@@ -66,6 +66,20 @@ cmake --build build -j
 
 Napomena: na Windowsu je izlazni fajl `submarine_noir.exe`, ne `./build/submarine_noir`.
 
+### Quick helper skripte
+```powershell
+# Windows PowerShell (auto-fix stale cache, build, run)
+.\scripts\build.ps1
+
+# Ako želiš prisilno clean build
+.\scripts\build.ps1 -Clean
+```
+
+```bash
+# Linux/macOS headless smoke build
+./scripts/build.sh
+```
+
 ### Offline/CI fallback (bez raylib)
 Ako okruženje ne može instalirati/povući raylib, projekt se i dalje kompilira uz headless backend.
 Isti build koraci vrijede, ali runtime je no-op render (korisno za provjeru da je kod i arhitektura ispravna).
@@ -126,6 +140,10 @@ Isti build koraci vrijede, ali runtime je no-op render (korisno za provjeru da j
    - 5 prostorija: control, crew, medbay, engine, ballast.
    - 1 kratki horror event chain s 3 ishoda.
 
+6. **Packaging/dev ergonomics**
+   - CMake Presets za Windows/Linux profile.
+   - release artifact + portable content folder layout.
+
 ---
 
 ## Napomena o AI slikama i 2.5D
@@ -136,3 +154,31 @@ Da, moguće je besplatno:
 
 Za stabilnu kvalitetu je i dalje najbolje:
 - **Blender blockout + ručni paintover + AI kao pomoćni alat**, ne jedini izvor.
+
+---
+
+## Troubleshooting (Windows CMake cache mismatch)
+Ako si projekt premjestio iz jednog foldera u drugi (npr. `Downloads` -> `Documents`), stari `build/CMakeCache.txt` će sadržavati krivu putanju i CMake će javiti grešku "source does not match the source used to generate cache".
+
+Rješenja:
+
+```powershell
+# Opcija A: obriši stari build folder pa ponovno konfiguriraj
+Remove-Item -Recurse -Force .\build
+cmake -S . -B build
+cmake --build build -j
+.\build\submarine_noir.exe
+```
+
+```powershell
+# Opcija B: koristi helper skriptu (automatski detektira stale cache)
+.\scripts\build.ps1
+```
+
+```powershell
+# Opcija C: CMake fresh configure
+cmake --fresh -S . -B build
+cmake --build build -j
+.\build\submarine_noir.exe
+```
+
