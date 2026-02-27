@@ -13,36 +13,18 @@
 #if SUBNOIR_HAS_RAYLIB == 0
 #include <cstdarg>
 
-struct Vector2 {
-    float x;
-    float y;
-};
-
-struct Vector3 {
-    float x;
-    float y;
-    float z;
-};
-
-struct Rectangle {
-    float x;
-    float y;
-    float width;
-    float height;
-};
-
-struct Color {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
-    unsigned char a;
-};
+struct Vector2 { float x; float y; };
+struct Vector3 { float x; float y; float z; };
+struct Rectangle { float x; float y; float width; float height; };
+struct Color { unsigned char r; unsigned char g; unsigned char b; unsigned char a; };
 
 inline constexpr Color BLACK{0, 0, 0, 255};
 inline constexpr Color RAYWHITE{245, 245, 245, 255};
 
 enum MouseButton {
     MOUSE_LEFT_BUTTON = 0,
+    MOUSE_RIGHT_BUTTON = 1,
+    MOUSE_MIDDLE_BUTTON = 2,
 };
 
 void InitWindow(int width, int height, const char* title);
@@ -53,6 +35,7 @@ void CloseWindow();
 
 Vector2 GetMousePosition();
 bool IsMouseButtonPressed(int button);
+bool IsMouseButtonDown(int button);
 bool CheckCollisionPointRec(Vector2 point, Rectangle rec);
 
 Vector2 Vector2Subtract(Vector2 v1, Vector2 v2);

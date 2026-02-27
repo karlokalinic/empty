@@ -17,15 +17,16 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 
 ---
 
-## Što je implementirano (NOVI UPDATE)
+## Što je implementirano (NOVI UPDATE - DALJE)
 
 ### Core gameplay
+- Dodan mali **click cooldown** da input ne spamma i UI interakcija izgleda profesionalnije.
 - 2 scene:
   - `control_room`
   - `engine_corridor`
 - Klik na podlogu -> lik ide do ciljne točke.
 - Kretanje je sada u **isometric world koordinatama** (screen <-> iso konverzija).
-- Walkable zona je world-area clamp (brzi prototip).
+- Walkable zona + **blocker kolizije** (lik ne prolazi kroz zidove/velike objekte).
 - Hotspot interakcije:
   - dijalog hotspotovi,
   - scene exit hotspotovi.
@@ -34,6 +35,7 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 - Dodan **faux 3D isometric renderer** (projekcija + volumetrijski prism objekti).
 - Scene imaju ručno definiranu geometriju (`IsoPrism`) s top/left/right shadingom i punim zidovima/volumenima (jasniji level design).
 - Dodan depth layering: objekti se crtaju ispred/iza lika po world dubini (2.5D osjećaj).
+- Dodan **camera control**: RMB drag = pan, MMB drag = rotacija scene.
 - Dodan floor grid za jači isometric čitljiv output.
 - Dodani analog-horror overlay efekti: scanlines + pulsirajući crveni cast.
 
@@ -102,6 +104,8 @@ cmake --build build -j
 
 ## Kontrole
 - **LMB**: kretanje / interakcija / odabir dialogue choice
+- **RMB (drži i pomiči miš)**: pomicanje kamere (pan)
+- **MMB / pritisak wheel-a (drži i pomiči miš)**: rotacija scene
 - **ESC**: izlaz (u real raylib buildu)
 
 ---
@@ -136,8 +140,8 @@ cmake --build build -j
 ## Plan za sljedeći patch (na tvoj "DALJE")
 
 1. **Vizualni upgrade (sljedeći korak)**
-   - Zamijeniti proceduralne prism scene sa teksturiranim painterly background/foreground layerima.
-   - Dodati shader stack: grain + vignette + blagi CRT/noise pass.
+   - Učitavanje ručno nacrtanih painterly background/foreground layera po sceni (stil reference slike).
+   - Soft shadow pass i AO fake overlay za realističniji “diorama” feeling.
    - Uvesti depth mask occlusion da lik prolazi iza objekata.
 
 2. **Pathfinding upgrade**
