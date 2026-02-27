@@ -17,9 +17,13 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 
 ---
 
-## Što je implementirano (NOVI UPDATE - DALJE+++)
+## Što je implementirano (NOVI UPDATE - DALJE++++ )
 
 ### Core gameplay
+- Dodan **Vertical cutaway level** (side-scroller feeling) s više katova povezanih stepenicama.
+- Dodani **missing keys/keycard privileges** (Level 1 i Level 2) i zaključana vrata/cache objekti.
+- Dodani **timed choices** i lock/unlock choice logika ovisno o flagovima, redoslijedu odlazaka i keycard levelu.
+- Dodani **branching endings** (više završetaka ovisno o odabirima i tajmingu).
 - **Glatkije kretanje**: acceleration + damping + bob animacija lika.
 - Dodan mali **click cooldown** da input ne spamma i UI interakcija izgleda profesionalnije.
 - Dodan **Main Menu** (Start/Quit) za bolji flow kao prava igra.
@@ -112,7 +116,7 @@ cmake --build build -j
 ## Kontrole
 - **LMB**: kretanje / interakcija / odabir dialogue choice
 - **RMB (drži i pomiči miš)**: pomicanje kamere (pan)
-- **MMB / pritisak wheel-a (drži i pomiči miš)**: rotacija scene (limitirana)
+- **MMB / pritisak wheel-a (drži i pomiči miš)**: rotacija scene (limitirana, samo isometric scene)
 - **Mouse Wheel**: zoom in/out
 - **ESC**: izlaz (u real raylib buildu)
 
@@ -175,6 +179,10 @@ cmake --build build -j
 6. **Packaging/dev ergonomics**
    - CMake Presets za Windows/Linux profile.
    - release artifact + portable content folder layout.
+
+7. **Audio + assets integration**
+   - Učitati stvarne teksture/sprite sheetove i ambient audio loopove (machine hum, pressure creaks, sonar).
+   - Dodati per-scene audio mix i trigger-based stingers za timed odluke.
 
 ---
 
