@@ -1,7 +1,7 @@
 # Submarine Noir Prototype (C++ + raylib)
 
 Minimalni playable prototip koji spaja:
-- **isometric diorama / painterly horror** atmosferu,
+- **isometric diorama / pseudo-3D volumetric** atmosferu,
 - **point-and-click kretanje**,
 - **dialog + choices + log**,
 - **scene transition (fade)**,
@@ -17,17 +17,24 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 
 ---
 
-## Što je implementirano
+## Što je implementirano (NOVI UPDATE)
 
 ### Core gameplay
 - 2 scene:
   - `control_room`
   - `engine_corridor`
 - Klik na podlogu -> lik ide do ciljne točke.
-- Walkable zona definirana poligonom.
+- Kretanje je sada u **isometric world koordinatama** (screen <-> iso konverzija).
+- Walkable zona je world-area clamp (brzi prototip).
 - Hotspot interakcije:
   - dijalog hotspotovi,
   - scene exit hotspotovi.
+
+### Vizualni isometric/3D upgrade
+- Dodan **faux 3D isometric renderer** (projekcija + volumetrijski prism objekti).
+- Scene imaju ručno definiranu geometriju (`IsoPrism`) s top/left/right shadingom.
+- Dodan floor grid za jači isometric čitljiv output.
+- Dodani analog-horror overlay efekti: scanlines + pulsirajući crveni cast.
 
 ### Narrative sustav
 - Data-driven dijalog čvorovi (`DialogueNode`, `Choice`).
@@ -121,9 +128,10 @@ Isti build koraci vrijede, ali runtime je no-op render (korisno za provjeru da j
 
 ## Plan za sljedeći patch (na tvoj "DALJE")
 
-1. **Vizualni upgrade**
-   - Uvesti textured background/foreground layere po sceni.
+1. **Vizualni upgrade (sljedeći korak)**
+   - Zamijeniti proceduralne prism scene sa teksturiranim painterly background/foreground layerima.
    - Dodati shader stack: grain + vignette + blagi CRT/noise pass.
+   - Uvesti depth mask occlusion da lik prolazi iza objekata.
 
 2. **Pathfinding upgrade**
    - Zamijeniti "direct walk" sa waypoint/A* navigacijom preko walkmesh triangulacije.

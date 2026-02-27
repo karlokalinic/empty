@@ -68,6 +68,7 @@ void EndDrawing() {}
 void ClearBackground(Color) {}
 void DrawRectangle(int, int, int, int, Color) {}
 void DrawLineEx(Vector2, Vector2, float, Color) {}
+void DrawTriangle(Vector2, Vector2, Vector2, Color) {}
 void DrawCircleV(Vector2, float, Color) {}
 void DrawText(const char*, int, int, int, Color) {}
 void DrawRectangleRec(Rectangle, Color) {}

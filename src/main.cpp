@@ -1,6 +1,5 @@
 #include "raylib_compat.h"
 
-#include <algorithm>
 #include <cmath>
 #include <string>
 #include <unordered_map>
@@ -19,56 +18,29 @@ struct DialogueNode {
 };
 
 struct Hotspot {
-    Rectangle area;
+    Rectangle worldRect;
     std::string label;
     int dialogueNode;
     std::string transitionTo;
-    Vector2 spawnPosition;
+    Vector2 spawnWorld;
+};
+
+struct IsoPrism {
+    Vector3 origin;
+    Vector3 size;
+    Color top;
+    Color left;
+    Color right;
 };
 
 struct Scene {
     std::string id;
     Color background;
-    std::vector<Vector2> walkPolygon;
+    Rectangle walkArea;
     std::vector<Hotspot> hotspots;
+    std::vector<IsoPrism> geometry;
     std::string flavorText;
 };
-
-static bool PointInPolygon(const Vector2& p, const std::vector<Vector2>& poly) {
-    bool inside = false;
-    if (poly.size() < 3) {
-        return false;
-    }
-
-    for (size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++) {
-        const bool intersect = ((poly[i].y > p.y) != (poly[j].y > p.y)) &&
-                               (p.x < (poly[j].x - poly[i].x) * (p.y - poly[i].y) /
-                                           ((poly[j].y - poly[i].y) + 0.0001f) +
-                                       poly[i].x);
-        if (intersect) {
-            inside = !inside;
-        }
-    }
-
-    return inside;
-}
-
-static Vector2 ClampToWalkable(Vector2 desired, const std::vector<Vector2>& polygon) {
-    if (PointInPolygon(desired, polygon)) {
-        return desired;
-    }
-
-    Vector2 fallback = polygon.empty() ? Vector2{0, 0} : polygon.front();
-    float bestDist = INFINITY;
-    for (const auto& point : polygon) {
-        const float dist = Vector2Distance(point, desired);
-        if (dist < bestDist) {
-            bestDist = dist;
-            fallback = point;
-        }
-    }
-    return fallback;
-}
 
 enum class GameState {
     FreeRoam,
@@ -76,78 +48,112 @@ enum class GameState {
     Transition
 };
 
+static Vector2 IsoToScreen(const Vector3& p, const Vector2& origin, float scale) {
+    return Vector2{
+        origin.x + (p.x - p.y) * scale,
+        origin.y + (p.x + p.y) * scale * 0.5f - p.z * scale
+    };
+}
+
+static Vector2 ScreenToIsoGround(const Vector2& s, const Vector2& origin, float scale) {
+    const float a = (s.x - origin.x) / scale;
+    const float b = (s.y - origin.y) / (scale * 0.5f);
+    return Vector2{(a + b) * 0.5f, (b - a) * 0.5f};
+}
+
+static void DrawQuad(const Vector2& a, const Vector2& b, const Vector2& c, const Vector2& d, Color color) {
+    DrawTriangle(a, b, c, color);
+    DrawTriangle(a, c, d, color);
+}
+
+static void DrawIsoPrism(const IsoPrism& prism, const Vector2& origin, float scale) {
+    const Vector3 o = prism.origin;
+    const Vector3 s = prism.size;
+
+    Vector2 p000 = IsoToScreen(Vector3{o.x, o.y, o.z}, origin, scale);
+    Vector2 p100 = IsoToScreen(Vector3{o.x + s.x, o.y, o.z}, origin, scale);
+    Vector2 p010 = IsoToScreen(Vector3{o.x, o.y + s.y, o.z}, origin, scale);
+    Vector2 p110 = IsoToScreen(Vector3{o.x + s.x, o.y + s.y, o.z}, origin, scale);
+    Vector2 p001 = IsoToScreen(Vector3{o.x, o.y, o.z + s.z}, origin, scale);
+    Vector2 p101 = IsoToScreen(Vector3{o.x + s.x, o.y, o.z + s.z}, origin, scale);
+    Vector2 p011 = IsoToScreen(Vector3{o.x, o.y + s.y, o.z + s.z}, origin, scale);
+    Vector2 p111 = IsoToScreen(Vector3{o.x + s.x, o.y + s.y, o.z + s.z}, origin, scale);
+
+    DrawQuad(p001, p101, p111, p011, prism.top);
+    DrawQuad(p001, p011, p010, p000, prism.left);
+    DrawQuad(p101, p111, p110, p100, prism.right);
+}
+
+static Vector2 ClampToWalkArea(Vector2 p, const Rectangle& r) {
+    if (p.x < r.x) p.x = r.x;
+    if (p.x > r.x + r.width) p.x = r.x + r.width;
+    if (p.y < r.y) p.y = r.y;
+    if (p.y > r.y + r.height) p.y = r.y + r.height;
+    return p;
+}
+
+static bool PointInWorldRect(Vector2 p, const Rectangle& r) {
+    return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
+}
+
 int main() {
     const int screenWidth = 1366;
     const int screenHeight = 768;
-    InitWindow(screenWidth, screenHeight, "Submarine Noir Prototype - raylib");
+    const Vector2 isoOrigin{680, 210};
+    const float isoScale = 34.0f;
+
+    InitWindow(screenWidth, screenHeight, "Submarine Noir - Isometric Horror Prototype");
     SetTargetFPS(60);
 
     std::unordered_map<std::string, Scene> scenes;
 
     scenes["control_room"] = Scene{
         "control_room",
-        Color{16, 24, 38, 255},
-        {{130, 140}, {1230, 140}, {1290, 650}, {160, 700}},
+        Color{8, 18, 30, 255},
+        Rectangle{-7.0f, -6.0f, 14.0f, 12.0f},
         {
-            {Rectangle{980, 220, 180, 140}, "Command Console", 1, "", {0, 0}},
-            {Rectangle{70, 260, 100, 220}, "Bulkhead Door", -1, "engine_corridor", {1110, 420}},
-            {Rectangle{520, 500, 220, 120}, "Captain's Chair", 4, "", {0, 0}},
+            {Rectangle{2.6f, -2.8f, 2.0f, 2.1f}, "Command Console", 1, "", {0, 0}},
+            {Rectangle{-6.8f, -0.5f, 1.2f, 2.4f}, "Bulkhead Door", -1, "engine_corridor", {5.0f, 0.5f}},
+            {Rectangle{-1.3f, 2.0f, 2.2f, 1.8f}, "Captain's Chair", 4, "", {0, 0}},
         },
-        "CONTROL ROOM // humidity 83% // hull strain: stable"
+        {
+            {{-7, -6, 0}, {14, 12, 0.2f}, Color{22, 42, 63, 255}, Color{16, 29, 45, 255}, Color{12, 24, 38, 255}},
+            {{-4.8f, -4.5f, 0.2f}, {1.6f, 1.0f, 1.8f}, Color{90, 108, 120, 255}, Color{55, 66, 80, 255}, Color{70, 84, 95, 255}},
+            {{2.5f, -3.4f, 0.2f}, {2.1f, 1.3f, 2.2f}, Color{105, 122, 132, 255}, Color{60, 72, 84, 255}, Color{79, 92, 104, 255}},
+            {{-2.0f, 1.8f, 0.2f}, {2.3f, 1.6f, 1.2f}, Color{120, 95, 85, 255}, Color{74, 57, 53, 255}, Color{97, 70, 65, 255}},
+        },
+        "CONTROL ROOM // sonar static bleeding through steel"
     };
 
     scenes["engine_corridor"] = Scene{
         "engine_corridor",
-        Color{36, 14, 17, 255},
-        {{90, 120}, {1240, 140}, {1230, 670}, {110, 660}},
+        Color{26, 8, 12, 255},
+        Rectangle{-7.5f, -5.0f, 15.0f, 10.5f},
         {
-            {Rectangle{1180, 260, 120, 220}, "Return to Control", -1, "control_room", {210, 420}},
-            {Rectangle{350, 270, 250, 160}, "Maintenance Hatch", 7, "", {0, 0}},
-            {Rectangle{640, 480, 180, 130}, "Crew Journal", 10, "", {0, 0}},
+            {Rectangle{6.1f, -0.4f, 1.2f, 2.0f}, "Return to Control", -1, "control_room", {-5.2f, 0.6f}},
+            {Rectangle{-2.8f, -1.9f, 2.3f, 1.9f}, "Maintenance Hatch", 7, "", {0, 0}},
+            {Rectangle{1.2f, 2.0f, 2.0f, 1.6f}, "Crew Journal", 10, "", {0, 0}},
         },
-        "ENGINE CORRIDOR // red emergency strips active"
+        {
+            {{-7.5f, -5, 0}, {15, 10.5f, 0.2f}, Color{52, 20, 24, 255}, Color{37, 13, 18, 255}, Color{44, 15, 21, 255}},
+            {{-4.0f, -2.7f, 0.2f}, {2.6f, 1.4f, 2.4f}, Color{133, 78, 58, 255}, Color{86, 50, 38, 255}, Color{103, 59, 46, 255}},
+            {{0.8f, -3.1f, 0.2f}, {2.5f, 1.1f, 1.8f}, Color{118, 88, 72, 255}, Color{74, 53, 45, 255}, Color{94, 67, 56, 255}},
+            {{2.0f, 1.5f, 0.2f}, {2.2f, 1.8f, 1.3f}, Color{90, 84, 101, 255}, Color{57, 52, 65, 255}, Color{71, 65, 81, 255}},
+        },
+        "ENGINE CORRIDOR // red strips pulse like a warning heartbeat"
     };
 
     std::unordered_map<int, DialogueNode> dialogue{
-        {1, {"Ops AI", "Captain, sonar picks up movement outside the hull. Want a full scan?", {
-            {"Do a silent scan.", 2, "silent_scan"},
-            {"Ping active sonar. I want certainty.", 3, "loud_scan"},
-            {"Ignore it. We stay dark.", -1, ""}
-        }}},
-        {2, {"Ops AI", "Silent sweep complete. Heat signatures: uncertain. The ocean is lying tonight.", {
-            {"Log it. Prepare security team.", -1, "prep_security"},
-            {"Open channel to crew deck.", 5, ""}
-        }}},
-        {3, {"Ops AI", "Active ping answered. Something answered back.", {
-            {"Seal all doors.", 6, "lockdown"},
-            {"Keep pinging.", -1, ""}
-        }}},
-        {4, {"Inner Voice", "The chair is still warm, but nobody sits here anymore.", {
-            {"Sit for a moment.", -1, "memory_echo"},
-            {"Step away.", -1, ""}
-        }}},
-        {5, {"Deck Chief", "We're hearing metal scratching through the vents.", {
-            {"Arm everyone.", -1, "crew_armed"},
-            {"No panic. Stay put.", -1, "crew_calm"}
-        }}},
-        {6, {"System", "LOCKDOWN INITIATED // Some doors failed to close.", {
-            {"Route power to magnetic seals.", -1, "reroute_power"}
-        }}},
-        {7, {"Mechanic", "Hatch wheel is stuck. Either rust... or pressure from the other side.", {
-            {"Force it open.", 8, "force_hatch"},
-            {"Leave it.", -1, ""}
-        }}},
-        {8, {"Narrator", "The hatch opens two centimeters. Warm air exhales like a living thing.", {
-            {"Shine flashlight inside.", 9, "light_check"},
-            {"Close it now.", -1, ""}
-        }}},
-        {9, {"Narrator", "Wet footprints lead inward, then stop mid-corridor.", {
-            {"Mark area for investigation.", -1, "trace_marked"}
-        }}},
-        {10, {"Journal", "'Day 41. We have mapped every chamber except one that appears only on old blueprints.'", {
-            {"Take journal page.", -1, "journal_page"},
-            {"Leave it.", -1, ""}
-        }}},
+        {1, {"Ops AI", "Captain, sonar picks up movement outside the hull. Want a full scan?", {{"Do a silent scan.", 2, "silent_scan"}, {"Ping active sonar. I want certainty.", 3, "loud_scan"}, {"Ignore it. We stay dark.", -1, ""}}}},
+        {2, {"Ops AI", "Silent sweep complete. Heat signatures: uncertain. The ocean is lying tonight.", {{"Log it. Prepare security team.", -1, "prep_security"}, {"Open channel to crew deck.", 5, ""}}}},
+        {3, {"Ops AI", "Active ping answered. Something answered back.", {{"Seal all doors.", 6, "lockdown"}, {"Keep pinging.", -1, ""}}}},
+        {4, {"Inner Voice", "The chair is still warm, but nobody sits here anymore.", {{"Sit for a moment.", -1, "memory_echo"}, {"Step away.", -1, ""}}}},
+        {5, {"Deck Chief", "We're hearing metal scratching through the vents.", {{"Arm everyone.", -1, "crew_armed"}, {"No panic. Stay put.", -1, "crew_calm"}}}},
+        {6, {"System", "LOCKDOWN INITIATED // Some doors failed to close.", {{"Route power to magnetic seals.", -1, "reroute_power"}}}},
+        {7, {"Mechanic", "Hatch wheel is stuck. Either rust... or pressure from the other side.", {{"Force it open.", 8, "force_hatch"}, {"Leave it.", -1, ""}}}},
+        {8, {"Narrator", "The hatch opens two centimeters. Warm air exhales like a living thing.", {{"Shine flashlight inside.", 9, "light_check"}, {"Close it now.", -1, ""}}}},
+        {9, {"Narrator", "Wet footprints lead inward, then stop mid-corridor.", {{"Mark area for investigation.", -1, "trace_marked"}}}},
+        {10, {"Journal", "'Day 41. We mapped every chamber except one that appears only on old blueprints.'", {{"Take journal page.", -1, "journal_page"}, {"Leave it.", -1, ""}}}},
     };
 
     std::vector<std::string> flags;
@@ -156,38 +162,40 @@ int main() {
     GameState state = GameState::FreeRoam;
     std::string currentSceneId = "control_room";
 
-    Vector2 playerPos{320, 450};
-    Vector2 targetPos = playerPos;
-    float playerSpeed = 180.0f;
+    Vector2 playerWorld{0.0f, 0.0f};
+    Vector2 targetWorld = playerWorld;
+    float playerSpeed = 4.7f;
 
     int activeDialogueNode = -1;
-
     bool isFading = false;
     float fadeAlpha = 0.0f;
     float fadeDirection = 1.0f;
     std::string pendingScene;
     Vector2 pendingSpawn{0, 0};
+    int frameCounter = 0;
 
     while (!WindowShouldClose()) {
+        frameCounter++;
         const float dt = GetFrameTime();
         Scene& scene = scenes[currentSceneId];
 
         if (state == GameState::FreeRoam) {
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                const Vector2 mouse = GetMousePosition();
+                const Vector2 mouseScreen = GetMousePosition();
+                const Vector2 mouseWorld = ScreenToIsoGround(mouseScreen, isoOrigin, isoScale);
                 bool clickedHotspot = false;
 
                 for (const auto& hotspot : scene.hotspots) {
-                    if (CheckCollisionPointRec(mouse, hotspot.area)) {
+                    if (PointInWorldRect(mouseWorld, hotspot.worldRect)) {
                         clickedHotspot = true;
-                        targetPos = ClampToWalkable(
-                            Vector2{hotspot.area.x + hotspot.area.width / 2.0f, hotspot.area.y + hotspot.area.height / 2.0f},
-                            scene.walkPolygon
-                        );
+                        targetWorld = ClampToWalkArea(
+                            Vector2{hotspot.worldRect.x + hotspot.worldRect.width * 0.5f,
+                                    hotspot.worldRect.y + hotspot.worldRect.height * 0.5f},
+                            scene.walkArea);
 
                         if (!hotspot.transitionTo.empty()) {
                             pendingScene = hotspot.transitionTo;
-                            pendingSpawn = hotspot.spawnPosition;
+                            pendingSpawn = hotspot.spawnWorld;
                             state = GameState::Transition;
                             isFading = true;
                             fadeDirection = 1.0f;
@@ -200,41 +208,30 @@ int main() {
                 }
 
                 if (!clickedHotspot) {
-                    targetPos = ClampToWalkable(mouse, scene.walkPolygon);
+                    targetWorld = ClampToWalkArea(mouseWorld, scene.walkArea);
                 }
             }
 
-            const Vector2 delta = Vector2Subtract(targetPos, playerPos);
+            const Vector2 delta = Vector2Subtract(targetWorld, playerWorld);
             const float dist = Vector2Length(delta);
-            if (dist > 1.0f) {
+            if (dist > 0.04f) {
                 const Vector2 step = Vector2Scale(Vector2Normalize(delta), playerSpeed * dt);
-                if (Vector2Length(step) > dist) {
-                    playerPos = targetPos;
-                } else {
-                    playerPos = Vector2Add(playerPos, step);
-                }
+                playerWorld = (Vector2Length(step) > dist) ? targetWorld : Vector2Add(playerWorld, step);
             }
         } else if (state == GameState::Dialogue && activeDialogueNode >= 0) {
             const DialogueNode& node = dialogue[activeDialogueNode];
-            const int baseY = screenHeight - 210;
             for (size_t i = 0; i < node.choices.size(); ++i) {
-                Rectangle btn{40, static_cast<float>(baseY + 70 + static_cast<int>(i) * 35), 860, 28};
+                Rectangle btn{40, static_cast<float>(screenHeight - 140 + static_cast<int>(i) * 35), 860, 28};
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), btn)) {
                     const Choice& pick = node.choices[i];
-                    if (!pick.setFlag.empty()) {
-                        flags.push_back(pick.setFlag);
-                    }
+                    if (!pick.setFlag.empty()) flags.push_back(pick.setFlag);
 
                     dialogueLog.push_back(node.speaker + ": " + node.line);
                     dialogueLog.push_back("YOU: " + pick.text);
-                    if (dialogueLog.size() > 14) {
-                        dialogueLog.erase(dialogueLog.begin(), dialogueLog.begin() + 2);
-                    }
+                    if (dialogueLog.size() > 14) dialogueLog.erase(dialogueLog.begin(), dialogueLog.begin() + 2);
 
                     activeDialogueNode = pick.nextNode;
-                    if (activeDialogueNode < 0) {
-                        state = GameState::FreeRoam;
-                    }
+                    if (activeDialogueNode < 0) state = GameState::FreeRoam;
                     break;
                 }
             }
@@ -245,8 +242,8 @@ int main() {
             if (fadeDirection > 0.0f && fadeAlpha >= 1.0f) {
                 fadeAlpha = 1.0f;
                 currentSceneId = pendingScene;
-                playerPos = pendingSpawn;
-                targetPos = pendingSpawn;
+                playerWorld = pendingSpawn;
+                targetWorld = pendingSpawn;
                 fadeDirection = -1.0f;
             } else if (fadeDirection < 0.0f && fadeAlpha <= 0.0f) {
                 fadeAlpha = 0.0f;
@@ -260,36 +257,52 @@ int main() {
 
         DrawRectangle(0, 0, screenWidth, screenHeight, scene.background);
 
-        for (size_t i = 0; i < scene.walkPolygon.size(); ++i) {
-            const Vector2 p0 = scene.walkPolygon[i];
-            const Vector2 p1 = scene.walkPolygon[(i + 1) % scene.walkPolygon.size()];
-            DrawLineEx(p0, p1, 2.0f, Color{80, 150, 180, 90});
+        // floor grid for stronger isometric read
+        for (int i = -8; i <= 8; ++i) {
+            Vector2 a = IsoToScreen(Vector3{-7.5f, static_cast<float>(i), 0.21f}, isoOrigin, isoScale);
+            Vector2 b = IsoToScreen(Vector3{7.5f, static_cast<float>(i), 0.21f}, isoOrigin, isoScale);
+            DrawLineEx(a, b, 1.0f, Color{120, 145, 160, 35});
+
+            Vector2 c = IsoToScreen(Vector3{static_cast<float>(i), -7.5f, 0.21f}, isoOrigin, isoScale);
+            Vector2 d = IsoToScreen(Vector3{static_cast<float>(i), 7.5f, 0.21f}, isoOrigin, isoScale);
+            DrawLineEx(c, d, 1.0f, Color{120, 145, 160, 35});
         }
 
-        DrawCircleV(playerPos, 14.0f, Color{220, 220, 215, 255});
-        DrawCircleV(playerPos, 10.0f, Color{20, 20, 25, 255});
+        for (const auto& geom : scene.geometry) {
+            DrawIsoPrism(geom, isoOrigin, isoScale);
+        }
 
+        // hotspots rendered as subtle glows in world
         for (const auto& hotspot : scene.hotspots) {
-            Color c{100, 200, 140, 45};
-            if (CheckCollisionPointRec(GetMousePosition(), hotspot.area)) {
-                c = Color{210, 230, 80, 80};
-                DrawText(hotspot.label.c_str(), static_cast<int>(hotspot.area.x),
-                         static_cast<int>(hotspot.area.y - 18), 16, RAYWHITE);
-            }
-            DrawRectangleRec(hotspot.area, c);
-            DrawRectangleLinesEx(hotspot.area, 1.5f, Color{220, 255, 210, 110});
+            Vector2 cWorld{hotspot.worldRect.x + hotspot.worldRect.width * 0.5f, hotspot.worldRect.y + hotspot.worldRect.height * 0.5f};
+            Vector2 cScreen = IsoToScreen(Vector3{cWorld.x, cWorld.y, 0.25f}, isoOrigin, isoScale);
+            const bool hover = PointInWorldRect(ScreenToIsoGround(GetMousePosition(), isoOrigin, isoScale), hotspot.worldRect);
+            DrawCircleV(cScreen, hover ? 16.0f : 10.0f, hover ? Color{250, 230, 120, 120} : Color{140, 220, 180, 75});
+            if (hover) DrawText(hotspot.label.c_str(), static_cast<int>(cScreen.x + 12), static_cast<int>(cScreen.y - 10), 16, RAYWHITE);
         }
 
-        DrawRectangle(0, 0, screenWidth, 34, Color{5, 8, 12, 220});
-        DrawText(scene.flavorText.c_str(), 14, 9, 16, Color{190, 210, 220, 220});
+        // player in iso world
+        Vector2 playerScreen = IsoToScreen(Vector3{playerWorld.x, playerWorld.y, 0.25f}, isoOrigin, isoScale);
+        DrawCircleV(Vector2{playerScreen.x + 9, playerScreen.y + 7}, 11.0f, Color{10, 10, 14, 110});
+        DrawCircleV(playerScreen, 12.5f, Color{228, 225, 218, 255});
+        DrawCircleV(Vector2{playerScreen.x, playerScreen.y - 2}, 8.5f, Color{24, 24, 30, 255});
 
-        DrawRectangle(0, screenHeight - 145, screenWidth, 145, Color{10, 10, 14, 170});
+        // analog horror style scanlines + red pulse
+        for (int y = 0; y < screenHeight; y += 3) {
+            const unsigned char alpha = static_cast<unsigned char>(10 + (y + frameCounter) % 9);
+            DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, alpha});
+        }
+        DrawRectangle(0, 0, screenWidth, 110, Color{110, 20, 30, static_cast<unsigned char>(12 + std::abs((frameCounter % 90) - 45))});
+
+        DrawRectangle(0, 0, screenWidth, 34, Color{5, 8, 12, 225});
+        DrawText(scene.flavorText.c_str(), 14, 9, 16, Color{190, 210, 220, 220});
+        DrawText(TextFormat("Flags: %i", static_cast<int>(flags.size())), screenWidth - 160, 8, 16, Color{160, 230, 190, 255});
+
+        DrawRectangle(0, screenHeight - 145, screenWidth, 145, Color{10, 10, 14, 172});
         DrawText("LOG", 14, screenHeight - 138, 16, Color{225, 200, 140, 255});
         for (size_t i = 0; i < dialogueLog.size(); ++i) {
             DrawText(dialogueLog[i].c_str(), 14, screenHeight - 115 + static_cast<int>(i) * 16, 14, Color{200, 210, 210, 240});
         }
-
-        DrawText(TextFormat("Flags: %i", static_cast<int>(flags.size())), screenWidth - 160, 8, 16, Color{150, 220, 180, 255});
 
         if (state == GameState::Dialogue && activeDialogueNode >= 0) {
             const DialogueNode& node = dialogue[activeDialogueNode];
@@ -307,12 +320,9 @@ int main() {
             }
         }
 
-        if (isFading) {
-            DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));
-        }
+        if (isFading) DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));
 
         DrawText("LMB: move/interact | Esc: quit", screenWidth - 320, screenHeight - 22, 12, Color{180, 180, 180, 190});
-
         EndDrawing();
     }
 

@@ -14,6 +14,12 @@ struct Vector2 {
     float y;
 };
 
+struct Vector3 {
+    float x;
+    float y;
+    float z;
+};
+
 struct Rectangle {
     float x;
     float y;
@@ -58,6 +64,7 @@ void ClearBackground(Color color);
 
 void DrawRectangle(int posX, int posY, int width, int height, Color color);
 void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
+void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
 void DrawCircleV(Vector2 center, float radius, Color color);
 void DrawText(const char* text, int posX, int posY, int fontSize, Color color);
 void DrawRectangleRec(Rectangle rec, Color color);
