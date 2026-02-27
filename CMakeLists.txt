@@ -5,6 +5,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Default build type for single-config generators (e.g. Ninja, Makefiles)
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+  message(STATUS "CMAKE_BUILD_TYPE not set, defaulting to RelWithDebInfo")
+endif()
+
 option(USE_FETCHCONTENT_RAYLIB "Download raylib automatically if not found" ON)
 # Option to force using local compatibility backend instead of linking raylib
 option(FORCE_RAYLIB_COMPAT "Force using the local raylib compatibility backend" OFF)

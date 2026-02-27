@@ -197,6 +197,24 @@ Za stabilnu kvalitetu je i dalje najbolje:
 
 ---
 
+## Windows build output explained
+Ako vidiš ovo u PowerShellu:
+- `CMake Deprecation Warning at build/_deps/raylib-src/...` -> to je warning iz **upstream raylib CMake-a**, nije greška u ovom projektu.
+- `ninja: no work to do.` -> build je već aktualan, pa Ninja nema što ponovno kompilirati.
+
+Za prisilni rebuild:
+```powershell
+cmake --build build --clean-first -j
+.\build\submarine_noir.exe
+```
+
+Ako želiš uvijek svježu konfiguraciju:
+```powershell
+cmake --fresh -S . -B build
+cmake --build build -j
+.\build\submarine_noir.exe
+```
+
 ## Troubleshooting (Windows CMake cache mismatch)
 Ako si projekt premjestio iz jednog foldera u drugi (npr. `Downloads` -> `Documents`), stari `build/CMakeCache.txt` će sadržavati krivu putanju i CMake će javiti grešku "source does not match the source used to generate cache".
 
