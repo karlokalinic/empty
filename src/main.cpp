@@ -27,6 +27,7 @@ struct Scene {
     std::vector<Hotspot> hotspots;
     std::vector<IsoPrism> solids;
     std::vector<IsoPrism> wallsAlways;
+    std::vector<Rectangle> viewportStrips;
     std::string flavorText;
 };
 
@@ -82,9 +83,9 @@ static bool IsBlocked(Vector2 p, const Scene& s) {
 
 static Vector2 FindValidTarget(Vector2 desired, const Scene& scene, Vector2 fallback) {
     if (!IsBlocked(desired, scene)) return desired;
-    for (float r = 0.2f; r <= 3.2f; r += 0.2f) {
-        for (int i = 0; i < 20; ++i) {
-            float a = 6.283185f * (static_cast<float>(i) / 20.0f);
+    for (float r = 0.2f; r <= 3.6f; r += 0.2f) {
+        for (int i = 0; i < 24; ++i) {
+            float a = 6.283185f * (static_cast<float>(i) / 24.0f);
             Vector2 c{desired.x + std::cos(a) * r, desired.y + std::sin(a) * r};
             if (!IsBlocked(c, scene)) return c;
         }
@@ -106,9 +107,7 @@ int main() {
     scenes["control_room"] = Scene{
         "control_room", Color{14, 20, 26, 255}, Rectangle{-7.2f, -6.0f, 14.4f, 12.0f},
         {
-            Rectangle{-1.2f, -1.7f, 2.4f, 3.4f}, // central console cluster
-            Rectangle{3.0f, -3.0f, 1.7f, 1.9f},
-            Rectangle{-2.5f, 2.1f, 2.1f, 1.5f},
+            Rectangle{-1.2f, -1.7f, 2.4f, 3.4f}, Rectangle{3.0f, -3.0f, 1.7f, 1.9f}, Rectangle{-2.5f, 2.1f, 2.1f, 1.5f}, Rectangle{-5.8f, -4.2f, 0.9f, 8.0f}
         },
         {
             {Rectangle{2.8f, -2.8f, 1.7f, 1.6f}, "Command Console", 1, "", {0, 0}},
@@ -116,28 +115,27 @@ int main() {
             {Rectangle{-2.4f, 2.1f, 1.8f, 1.3f}, "Captain's Chair", 4, "", {0, 0}},
         },
         {
-            {{-7.2f, -6, 0}, {14.4f, 12, 0.2f}, Color{60, 68, 74, 255}, Color{41, 47, 52, 255}, Color{36, 40, 45, 255}},
+            {{-7.2f, -6, 0}, {14.4f, 12, 0.2f}, Color{66, 73, 80, 255}, Color{45, 50, 56, 255}, Color{38, 42, 47, 255}},
             {{-1.2f, -1.7f, 0.2f}, {2.4f, 3.4f, 0.8f}, Color{222, 44, 51, 255}, Color{147, 24, 33, 255}, Color{181, 31, 41, 255}},
             {{3.0f, -3.0f, 0.2f}, {1.7f, 1.9f, 1.8f}, Color{162, 140, 121, 255}, Color{106, 90, 77, 255}, Color{130, 110, 94, 255}},
             {{-2.5f, 2.1f, 0.2f}, {2.1f, 1.5f, 1.3f}, Color{158, 130, 102, 255}, Color{102, 82, 64, 255}, Color{126, 100, 78, 255}},
-            // pipes/industrial hints
-            {{-5.2f, -3.8f, 0.2f}, {0.45f, 7.2f, 0.45f}, Color{194, 120, 83, 255}, Color{125, 76, 53, 255}, Color{150, 91, 63, 255}},
-            {{-4.2f, -4.1f, 0.2f}, {0.4f, 6.8f, 0.4f}, Color{174, 168, 160, 255}, Color{110, 106, 100, 255}, Color{136, 130, 122, 255}},
+            {{-5.8f, -4.2f, 0.2f}, {0.45f, 8.0f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
+            {{-5.0f, -4.3f, 0.2f}, {0.35f, 7.6f, 0.35f}, Color{165, 160, 153, 255}, Color{106, 102, 96, 255}, Color{130, 124, 118, 255}},
         },
         {
-            // ONLY two visible walls (L shape): north and west
-            {{-7.2f, -6.0f, 0.2f}, {14.4f, 0.85f, 3.2f}, Color{134, 138, 141, 255}, Color{95, 98, 102, 255}, Color{112, 115, 120, 255}},
-            {{-7.2f, -5.15f, 0.2f}, {0.85f, 11.15f, 3.2f}, Color{128, 133, 138, 255}, Color{84, 90, 98, 255}, Color{103, 110, 117, 255}},
+            {{-7.2f, -6.0f, 0.2f}, {14.4f, 0.85f, 3.2f}, Color{139, 143, 146, 255}, Color{95, 98, 102, 255}, Color{112, 115, 120, 255}},
+            {{-7.2f, -5.15f, 0.2f}, {0.85f, 11.15f, 3.2f}, Color{132, 137, 142, 255}, Color{84, 90, 98, 255}, Color{103, 110, 117, 255}},
         },
-        "CONTROL ROOM // submarine steel, pipes, pressure, silence"
+        {
+            Rectangle{-6.4f, -5.75f, 2.2f, 0.45f}, Rectangle{-3.6f, -5.75f, 2.0f, 0.45f}
+        },
+        "CONTROL ROOM // hull pressure, machinery hum, sonar dread"
     };
 
     scenes["engine_corridor"] = Scene{
         "engine_corridor", Color{24, 13, 15, 255}, Rectangle{-7.8f, -5.3f, 15.6f, 10.8f},
         {
-            Rectangle{-1.4f, -0.6f, 2.0f, 3.2f},
-            Rectangle{-4.6f, -2.7f, 2.4f, 1.6f},
-            Rectangle{2.7f, -2.1f, 1.9f, 1.5f},
+            Rectangle{-1.4f, -0.6f, 2.0f, 3.2f}, Rectangle{-4.6f, -2.7f, 2.4f, 1.6f}, Rectangle{2.7f, -2.1f, 1.9f, 1.5f}, Rectangle{-6.2f, -4.3f, 0.9f, 8.1f}
         },
         {
             {Rectangle{6.2f, -0.4f, 1.1f, 1.8f}, "Return to Control", -1, "control_room", {-5.4f, 0.2f}},
@@ -149,15 +147,17 @@ int main() {
             {{-1.4f, -0.6f, 0.2f}, {2.0f, 3.2f, 0.8f}, Color{226, 40, 47, 255}, Color{151, 23, 29, 255}, Color{182, 29, 35, 255}},
             {{-4.6f, -2.7f, 0.2f}, {2.4f, 1.6f, 2.1f}, Color{171, 108, 79, 255}, Color{112, 73, 54, 255}, Color{136, 89, 66, 255}},
             {{2.7f, -2.1f, 0.2f}, {1.9f, 1.5f, 1.8f}, Color{165, 140, 120, 255}, Color{106, 88, 74, 255}, Color{130, 108, 90, 255}},
-            // machinery pipes
-            {{-6.0f, -4.1f, 0.2f}, {0.45f, 8.0f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
-            {{-5.2f, -4.3f, 0.2f}, {0.35f, 7.5f, 0.35f}, Color{165, 160, 153, 255}, Color{106, 102, 96, 255}, Color{130, 124, 118, 255}},
+            {{-6.2f, -4.3f, 0.2f}, {0.45f, 8.1f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
+            {{-5.45f, -4.4f, 0.2f}, {0.35f, 7.6f, 0.35f}, Color{165, 160, 153, 255}, Color{106, 102, 96, 255}, Color{130, 124, 118, 255}},
         },
         {
             {{-7.8f, -5.3f, 0.2f}, {15.6f, 0.85f, 3.0f}, Color{141, 95, 74, 255}, Color{92, 63, 49, 255}, Color{113, 77, 60, 255}},
             {{-7.8f, -4.45f, 0.2f}, {0.85f, 9.95f, 3.0f}, Color{132, 86, 69, 255}, Color{84, 56, 45, 255}, Color{103, 68, 54, 255}},
         },
-        "ENGINE CORRIDOR // submarine machinery, rust, steam, dread"
+        {
+            Rectangle{-6.9f, -5.0f, 2.2f, 0.45f}
+        },
+        "ENGINE CORRIDOR // underwater pressure and metallic heartbeat"
     };
 
     std::unordered_map<int, DialogueNode> dialogue{
@@ -181,7 +181,10 @@ int main() {
     std::string currentSceneId = "control_room";
     Vector2 playerWorld{0.0f, 0.0f};
     Vector2 targetWorld{0.0f, 0.0f};
-    float playerSpeed = 4.8f;
+    Vector2 playerVel{0.0f, 0.0f};
+    const float maxSpeed = 5.1f;
+    const float accel = 17.0f;
+    const float friction = 12.0f;
     float clickCooldown = 0.0f;
 
     int activeDialogueNode = -1;
@@ -194,7 +197,7 @@ int main() {
     Vector2 cameraPan{0.0f, 0.0f};
     float cameraAngle = 0.0f;
     float cameraZoom = 34.0f;
-    const float maxAngle = 0.55f; // never expose out-of-room view
+    const float maxAngle = 0.55f;
     Vector2 prevMouse = GetMousePosition();
     int frameCounter = 0;
 
@@ -211,20 +214,17 @@ int main() {
         if (appMode == AppMode::MainMenu) {
             Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 20, 360, 54};
             Rectangle quitBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 50, 360, 48};
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) {
-                appMode = AppMode::InGame;
-            }
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, quitBtn)) {
-                running = false;
-            }
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) appMode = AppMode::InGame;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, quitBtn)) running = false;
 
             BeginDrawing();
             ClearBackground(Color{8, 11, 15, 255});
             DrawRectangle(0, 0, screenWidth, screenHeight, Color{12, 16, 24, 255});
             for (int y = 0; y < screenHeight; y += 3) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, static_cast<unsigned char>(8 + y % 8)});
-            DrawRectangle(0, 0, screenWidth, 140, Color{130, 20, 28, 18});
-            DrawText("SUBMARINE NOIR", screenWidth / 2 - 180, 140, 48, Color{236, 224, 210, 255});
-            DrawText("Cinematic 2.5D Narrative Prototype", screenWidth / 2 - 190, 195, 22, Color{177, 191, 204, 240});
+            DrawRectangle(0, 0, screenWidth, 170, Color{130, 20, 28, 20});
+            DrawText("SUBMARINE NOIR", screenWidth / 2 - 180, 132, 48, Color{236, 224, 210, 255});
+            DrawText("AAA-style cinematic prototype build", screenWidth / 2 - 185, 188, 22, Color{177, 191, 204, 240});
+            DrawText("Ambient: machinery hum + underwater pressure (designed)", screenWidth / 2 - 258, 220, 16, Color{150, 170, 188, 220});
 
             bool hoverStart = CheckCollisionPointRec(mouseNow, startBtn);
             bool hoverQuit = CheckCollisionPointRec(mouseNow, quitBtn);
@@ -239,14 +239,10 @@ int main() {
         }
 
         Scene& scene = scenes[currentSceneId];
-
-        if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
-            cameraPan = Vector2Add(cameraPan, mouseDelta);
-        }
+        if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) cameraPan = Vector2Add(cameraPan, mouseDelta);
         if (IsMouseButtonDown(MOUSE_MIDDLE_BUTTON)) {
             cameraAngle += mouseDelta.x * 0.0065f;
-            if (cameraAngle > maxAngle) cameraAngle = maxAngle;
-            if (cameraAngle < -maxAngle) cameraAngle = -maxAngle;
+            cameraAngle = std::clamp(cameraAngle, -maxAngle, maxAngle);
         }
         cameraZoom = std::clamp(cameraZoom + GetMouseWheelMove() * 2.0f, 24.0f, 48.0f);
 
@@ -254,7 +250,6 @@ int main() {
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && clickCooldown <= 0.0f) {
                 Vector2 mouseWorld = ScreenToWorld(mouseNow, baseOrigin, cameraZoom, cameraAngle, cameraPan);
                 bool clickedHotspot = false;
-
                 for (const auto& h : scene.hotspots) {
                     if (InRect(mouseWorld, h.worldRect)) {
                         clickedHotspot = true;
@@ -272,25 +267,28 @@ int main() {
                         break;
                     }
                 }
-
                 if (!clickedHotspot) targetWorld = FindValidTarget(mouseWorld, scene, playerWorld);
                 clickCooldown = 0.10f;
             }
 
-            Vector2 delta = Vector2Subtract(targetWorld, playerWorld);
-            float dist = Vector2Length(delta);
-            if (dist > 0.03f) {
-                Vector2 step = Vector2Scale(Vector2Normalize(delta), playerSpeed * dt);
-                if (Vector2Length(step) > dist) step = delta;
-                Vector2 candidate = Vector2Add(playerWorld, step);
-                if (!IsBlocked(candidate, scene)) {
-                    playerWorld = candidate;
-                } else {
-                    Vector2 xOnly{playerWorld.x + step.x, playerWorld.y};
-                    Vector2 yOnly{playerWorld.x, playerWorld.y + step.y};
-                    if (!IsBlocked(xOnly, scene)) playerWorld = xOnly;
-                    else if (!IsBlocked(yOnly, scene)) playerWorld = yOnly;
-                }
+            Vector2 toTarget = Vector2Subtract(targetWorld, playerWorld);
+            float d = Vector2Length(toTarget);
+            if (d > 0.02f) {
+                Vector2 desired = Vector2Scale(Vector2Normalize(toTarget), maxSpeed);
+                playerVel = Vector2Add(playerVel, Vector2Scale(Vector2Subtract(desired, playerVel), std::min(1.0f, accel * dt)));
+            } else {
+                playerVel = Vector2Add(playerVel, Vector2Scale(playerVel, -std::min(1.0f, friction * dt)));
+            }
+
+            Vector2 step = Vector2Scale(playerVel, dt);
+            Vector2 candidate = Vector2Add(playerWorld, step);
+            if (!IsBlocked(candidate, scene)) playerWorld = candidate;
+            else {
+                Vector2 xOnly{playerWorld.x + step.x, playerWorld.y};
+                Vector2 yOnly{playerWorld.x, playerWorld.y + step.y};
+                if (!IsBlocked(xOnly, scene)) playerWorld = xOnly;
+                else if (!IsBlocked(yOnly, scene)) playerWorld = yOnly;
+                else playerVel = Vector2{0, 0};
             }
         } else if (state == GameState::Dialogue && activeDialogueNode >= 0) {
             const DialogueNode& node = dialogue[activeDialogueNode];
@@ -317,6 +315,7 @@ int main() {
                 Scene& nextScene = scenes[currentSceneId];
                 playerWorld = FindValidTarget(pendingSpawn, nextScene, Vector2{0.0f, 0.0f});
                 targetWorld = playerWorld;
+                playerVel = Vector2{0, 0};
                 fadeDirection = -1.0f;
             } else if (fadeDirection < 0.0f && fadeAlpha <= 0.0f) {
                 fadeAlpha = 0.0f;
@@ -324,6 +323,9 @@ int main() {
                 state = GameState::FreeRoam;
             }
         }
+
+        float flicker = 0.85f + 0.15f * std::sin(frameCounter * 0.09f);
+        if ((frameCounter % 160) < 6) flicker *= 0.55f; // glitch pulse
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -342,12 +344,28 @@ int main() {
         for (const auto& g : scene.solids) if (DepthOf(g) <= playerDepth) DrawIsoPrism(g, baseOrigin, cameraZoom, cameraAngle, cameraPan);
 
         Vector2 p = WorldToScreen(playerWorld, 0.25f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        float bob = std::sin(frameCounter * 0.15f) * 1.6f * std::min(1.0f, Vector2Length(playerVel));
         DrawCircleV(Vector2{p.x + 9, p.y + 8}, 12.0f, Color{8, 8, 12, 120});
-        DrawCircleV(p, 12.5f, Color{235, 230, 220, 255});
-        DrawCircleV(Vector2{p.x, p.y - 2}, 8.3f, Color{20, 20, 25, 255});
+        DrawCircleV(Vector2{p.x, p.y + bob}, 12.5f, Color{235, 230, 220, 255});
+        DrawCircleV(Vector2{p.x, p.y - 2 + bob}, 8.3f, Color{20, 20, 25, 255});
 
         for (const auto& g : scene.solids) if (DepthOf(g) > playerDepth) DrawIsoPrism(g, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         for (const auto& w : scene.wallsAlways) DrawIsoPrism(w, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+
+        // viewport water animation behind wall windows
+        for (const auto& vw : scene.viewportStrips) {
+            Vector2 a = WorldToScreen(Vector2{vw.x, vw.y}, 1.6f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+            Vector2 b = WorldToScreen(Vector2{vw.x + vw.width, vw.y + vw.height}, 1.6f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+            int x = static_cast<int>(std::min(a.x, b.x));
+            int y = static_cast<int>(std::min(a.y, b.y));
+            int w = static_cast<int>(std::fabs(b.x - a.x)) + 1;
+            int h = static_cast<int>(std::fabs(b.y - a.y)) + 1;
+            DrawRectangle(x, y, w, h, Color{24, 66, 96, static_cast<unsigned char>(65 * flicker)});
+            for (int i = 0; i < w; i += 10) {
+                int yy = y + ((i + frameCounter) % std::max(1, h));
+                DrawRectangle(x + i, yy, 5, 1, Color{130, 180, 210, 95});
+            }
+        }
 
         Vector2 mouseWorld = ScreenToWorld(mouseNow, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         for (const auto& h : scene.hotspots) {
@@ -359,9 +377,9 @@ int main() {
         }
 
         for (int y = 0; y < screenHeight; y += 3) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, static_cast<unsigned char>(9 + (y + frameCounter) % 10)});
-        DrawRectangle(0, 0, screenWidth, 110, Color{86, 25, 28, static_cast<unsigned char>(10 + std::abs((frameCounter % 90) - 45))});
-        DrawRectangle(0, 0, screenWidth, 44, Color{6, 10, 14, 230});
+        DrawRectangle(0, 0, screenWidth, 110, Color{86, 25, 28, static_cast<unsigned char>((10 + std::abs((frameCounter % 90) - 45)) * flicker)});
 
+        DrawRectangle(0, 0, screenWidth, 44, Color{6, 10, 14, 230});
         DrawRectangle(10, 7, 760, 30, Color{18, 24, 30, 200});
         DrawRectangleLinesEx(Rectangle{10, 7, 760, 30}, 1.5f, Color{120, 140, 155, 170});
         DrawText(scene.flavorText.c_str(), 18, 14, 14, Color{210, 220, 224, 240});
@@ -388,10 +406,8 @@ int main() {
             }
         }
 
-        // cinematic letterbox
         DrawRectangle(0, 0, screenWidth, 24, Color{0, 0, 0, 235});
         DrawRectangle(0, screenHeight - 24, screenWidth, 24, Color{0, 0, 0, 235});
-
         DrawText("LMB move/interact | RMB pan | MMB rotate | Wheel zoom", screenWidth - 500, screenHeight - 18, 12, Color{180, 186, 194, 230});
 
         if (isFading) DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));

@@ -17,11 +17,13 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 
 ---
 
-## Što je implementirano (NOVI UPDATE - DALJE++)
+## Što je implementirano (NOVI UPDATE - DALJE+++)
 
 ### Core gameplay
+- **Glatkije kretanje**: acceleration + damping + bob animacija lika.
 - Dodan mali **click cooldown** da input ne spamma i UI interakcija izgleda profesionalnije.
 - Dodan **Main Menu** (Start/Quit) za bolji flow kao prava igra.
+- Dodan cinematic letterbox i glitch/flicker lighting pulse.
 - 2 scene:
   - `control_room`
   - `engine_corridor`
@@ -34,6 +36,7 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
   - scene exit hotspotovi.
 
 ### Vizualni isometric/3D upgrade
+- **Submarine atmosfera**: industrijske cijevi/strojni blokovi + viewport “water movement” iza stakla.
 - Dodan **faux 3D isometric renderer** (projekcija + volumetrijski prism objekti).
 - Scene imaju ručno definiranu geometriju (`IsoPrism`) s top/left/right shadingom i punim zidovima/volumenima (jasniji level design).
 - Prostorije su složene kao **L-shape** (2 vidljiva zida), a vanjski zidovi se uvijek crtaju.
@@ -143,6 +146,10 @@ cmake --build build -j
 ---
 
 ## Plan za sljedeći patch (na tvoj "DALJE")
+
+0. **Audio (sljedeći patch)**
+   - Dodati real ambient loopove: submarine machine hum, pressure creaks, distant sonar pings.
+   - Zone-based muffling i kratki glitch audio stingeri kod flickera.
 
 1. **Vizualni upgrade (sljedeći korak)**
    - Učitavanje ručno nacrtanih painterly background/foreground layera po sceni (stil reference slike).
