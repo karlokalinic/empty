@@ -73,7 +73,7 @@ struct Scene {
     std::string onEnterFlag;
 };
 
-enum class AppMode { MainMenu, DiveIntro, InGame, SubmarineShowcase, Ending };
+enum class AppMode { MainMenu, DiveIntro, InGame, Ending };
 enum class GameState { FreeRoam, Dialogue, Transition };
 
 static bool HasFlag(const std::vector<std::string>& flags, const std::string& f) {
@@ -160,6 +160,37 @@ static void DrawIsoPrismTopEdges(const IsoPrism& g, const Scene& s, Vector2 orig
     DrawLineEx(p101, p111, 2.0f, edge);
     DrawLineEx(p111, p011, 2.0f, edge);
     DrawLineEx(p011, p001, 2.0f, edge);
+}
+
+static void DrawIsoPrismShadow(const IsoPrism& g, const Scene& s, Vector2 origin, float scale, float angle, Vector2 pan) {
+    if (s.verticalCutaway) return;
+    Vector3 o = g.origin, sz = g.size;
+    Vector2 p00 = ToScreen(s, Vector2{o.x + 0.12f, o.y + 0.12f}, 0.03f, origin, scale, angle, pan);
+    Vector2 p10 = ToScreen(s, Vector2{o.x + sz.x + 0.12f, o.y + 0.12f}, 0.03f, origin, scale, angle, pan);
+    Vector2 p01 = ToScreen(s, Vector2{o.x + 0.12f, o.y + sz.y + 0.12f}, 0.03f, origin, scale, angle, pan);
+    Vector2 p11 = ToScreen(s, Vector2{o.x + sz.x + 0.12f, o.y + sz.y + 0.12f}, 0.03f, origin, scale, angle, pan);
+    DrawQuad(p00, p10, p11, p01, Color{0, 0, 0, static_cast<unsigned char>(26 + std::min(80.0f, g.size.z * 36.0f))});
+}
+
+static void DrawSubmarineHullCutawayFrame(const Scene& s, Vector2 origin, float scale, float angle, Vector2 pan) {
+    if (s.verticalCutaway) return;
+    const float z = 3.4f;
+    Vector2 a = ToScreen(s, Vector2{-7.35f, -6.15f}, z, origin, scale, angle, pan);
+    Vector2 b = ToScreen(s, Vector2{7.35f, -6.15f}, z, origin, scale, angle, pan);
+    Vector2 c = ToScreen(s, Vector2{7.35f, 6.15f}, z, origin, scale, angle, pan);
+    Vector2 d = ToScreen(s, Vector2{-7.35f, 6.15f}, z, origin, scale, angle, pan);
+    DrawLineEx(a, b, 2.5f, Color{142, 164, 182, 160});
+    DrawLineEx(b, c, 2.5f, Color{142, 164, 182, 130});
+    DrawLineEx(c, d, 2.5f, Color{142, 164, 182, 160});
+    DrawLineEx(d, a, 2.5f, Color{142, 164, 182, 130});
+
+    for (int i = 0; i < 6; ++i) {
+        float t = static_cast<float>(i) / 5.0f;
+        float x = -6.7f + t * 12.9f;
+        Vector2 r0 = ToScreen(s, Vector2{x, -6.0f}, z, origin, scale, angle, pan);
+        Vector2 r1 = ToScreen(s, Vector2{x, 6.0f}, z, origin, scale, angle, pan);
+        DrawLineEx(r0, r1, 1.0f, Color{102, 124, 142, 62});
+    }
 }
 
 static bool InRect(Vector2 p, const Rectangle& r) {
@@ -322,6 +353,10 @@ int main() {
             {{-1.2f, -1.7f, 0.2f}, {2.4f, 3.4f, 0.8f}, Color{222, 44, 51, 255}, Color{147, 24, 33, 255}, Color{181, 31, 41, 255}},
             {{3.0f, -3.0f, 0.2f}, {1.7f, 1.9f, 1.8f}, Color{162, 140, 121, 255}, Color{106, 90, 77, 255}, Color{130, 110, 94, 255}},
             {{-5.8f, -4.2f, 0.2f}, {0.45f, 8.0f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
+            {{-6.2f, 3.9f, 0.2f}, {4.0f, 0.55f, 1.25f}, Color{106, 117, 128, 255}, Color{68, 76, 84, 255}, Color{82, 92, 102, 255}},
+            {{1.8f, 3.6f, 0.2f}, {2.7f, 0.65f, 1.1f}, Color{124, 136, 147, 255}, Color{78, 88, 96, 255}, Color{94, 106, 114, 255}},
+            {{-3.4f, -5.2f, 0.2f}, {1.0f, 1.0f, 2.1f}, Color{88, 102, 116, 255}, Color{57, 66, 75, 255}, Color{67, 78, 88, 255}},
+            {{4.0f, -0.2f, 0.2f}, {0.55f, 3.6f, 0.95f}, Color{179, 126, 88, 255}, Color{118, 84, 59, 255}, Color{139, 98, 68, 255}},
         },
         {
             {{-7.2f, -6.0f, 0.2f}, {14.4f, 0.85f, 3.2f}, Color{139, 143, 146, 255}, Color{95, 98, 102, 255}, Color{112, 115, 120, 255}},
@@ -331,7 +366,9 @@ int main() {
             {"steel", Rectangle{-7.0f,-5.8f,13.8f,0.45f}, 2.9f, Color{255,255,255,90}},
             {"grate", Rectangle{-6.6f,-1.2f,5.2f,0.35f}, 0.22f, Color{255,255,255,95}},
             {"rust", Rectangle{-5.9f,-4.1f,0.4f,8.0f}, 0.65f, Color{255,255,255,95}},
-            {"water", Rectangle{-6.4f,-5.75f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}}
+            {"water", Rectangle{-6.4f,-5.75f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}},
+            {"steel", Rectangle{-6.3f,3.95f,3.9f,0.5f}, 1.2f, Color{255,255,255,92}},
+            {"rust", Rectangle{3.95f,-0.3f,0.55f,3.7f}, 0.62f, Color{255,255,255,92}}
         },
         "CONTROL ROOM // pressure, steel, failing trust", "visited_control"
     };
@@ -348,6 +385,9 @@ int main() {
             {{-7.8f, -5.3f, 0}, {15.6f, 10.8f, 0.2f}, Color{58, 32, 34, 255}, Color{39, 22, 24, 255}, Color{46, 26, 28, 255}},
             {{-1.4f, -0.6f, 0.2f}, {2.0f, 3.2f, 0.8f}, Color{226, 40, 47, 255}, Color{151, 23, 29, 255}, Color{182, 29, 35, 255}},
             {{-6.2f, -4.3f, 0.2f}, {0.45f, 8.1f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
+            {{3.6f, -4.0f, 0.2f}, {0.65f, 6.8f, 0.95f}, Color{121, 87, 79, 255}, Color{78, 54, 49, 255}, Color{96, 67, 60, 255}},
+            {{-4.3f, 3.2f, 0.2f}, {3.5f, 0.55f, 1.05f}, Color{113, 97, 88, 255}, Color{72, 62, 56, 255}, Color{90, 76, 69, 255}},
+            {{1.2f, -3.8f, 0.2f}, {0.9f, 0.9f, 2.0f}, Color{90, 80, 74, 255}, Color{58, 50, 46, 255}, Color{69, 60, 55, 255}},
         },
         {
             {{-7.8f, -5.3f, 0.2f}, {15.6f, 0.85f, 3.0f}, Color{141, 95, 74, 255}, Color{92, 63, 49, 255}, Color{113, 77, 60, 255}},
@@ -356,7 +396,9 @@ int main() {
         {
             {"rust", Rectangle{-6.5f,-4.3f,0.5f,8.1f}, 0.62f, Color{255,255,255,100}},
             {"grate", Rectangle{-2.5f,-0.3f,4.6f,0.35f}, 0.22f, Color{255,255,255,96}},
-            {"water", Rectangle{-6.9f,-5.0f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}}
+            {"water", Rectangle{-6.9f,-5.0f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}},
+            {"steel", Rectangle{3.5f,-3.9f,0.7f,6.6f}, 0.62f, Color{255,255,255,95}},
+            {"grate", Rectangle{-4.2f,3.2f,3.3f,0.4f}, 0.25f, Color{255,255,255,92}}
         },
         "ENGINE CORRIDOR // rust and red emergency strips", "visited_engine"
     };
@@ -458,9 +500,6 @@ int main() {
     int frameCounter = 0;
     float storyClock = 0.0f;
     int worldBit = 0;
-    float showcaseYaw = 0.55f;
-    float showcasePitch = 0.3f;
-    float showcaseDistance = 12.0f;
     float diveIntroTimer = 0.0f;
 
     bool running = true;
@@ -476,11 +515,9 @@ int main() {
         prevMouse = mouseNow;
 
         if (appMode == AppMode::MainMenu) {
-            Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 40, 360, 54};
-            Rectangle showcaseBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 28, 360, 48};
-            Rectangle quitBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 92, 360, 48};
+            Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 20, 360, 54};
+            Rectangle quitBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 50, 360, 48};
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) { appMode = AppMode::DiveIntro; diveIntroTimer = 0.0f; }
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, showcaseBtn)) appMode = AppMode::SubmarineShowcase;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, quitBtn)) running = false;
 
             BeginDrawing();
@@ -489,57 +526,18 @@ int main() {
             for (int y = 0; y < screenHeight; y += 3) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, static_cast<unsigned char>(8 + y % 8)});
             DrawRectangle(0, 0, screenWidth, 170, Color{130, 20, 28, 20});
             DrawText("SUBMARINE NOIR", screenWidth / 2 - 180, 132, 48, Color{236, 224, 210, 255});
-            DrawText("Isometric command sim + 3D submarine showcase", screenWidth / 2 - 245, 188, 22, Color{177, 191, 204, 240});
+            DrawText("Unified hull cutaway: exterior intro feeds interior gameplay", screenWidth / 2 - 325, 188, 22, Color{177, 191, 204, 240});
             DrawText("World logic: every major state resolves to 0/1 (binary bit)", screenWidth / 2 - 285, 218, 16, Color{155, 175, 192, 230});
 
             bool hoverStart = CheckCollisionPointRec(mouseNow, startBtn);
-            bool hoverShowcase = CheckCollisionPointRec(mouseNow, showcaseBtn);
             bool hoverQuit = CheckCollisionPointRec(mouseNow, quitBtn);
             DrawRectangleRec(startBtn, hoverStart ? Color{72, 88, 102, 255} : Color{48, 62, 74, 255});
             DrawRectangleLinesEx(startBtn, 2.0f, Color{168, 188, 206, 230});
             DrawText("START DIVE", static_cast<int>(startBtn.x + 108), static_cast<int>(startBtn.y + 15), 24, RAYWHITE);
 
-            DrawRectangleRec(showcaseBtn, hoverShowcase ? Color{66, 98, 120, 255} : Color{42, 72, 92, 255});
-            DrawRectangleLinesEx(showcaseBtn, 2.0f, Color{140, 196, 224, 230});
-            DrawText("VIEW 3D SUBMARINE", static_cast<int>(showcaseBtn.x + 65), static_cast<int>(showcaseBtn.y + 13), 22, RAYWHITE);
-
             DrawRectangleRec(quitBtn, hoverQuit ? Color{80, 50, 50, 255} : Color{58, 38, 38, 255});
             DrawRectangleLinesEx(quitBtn, 2.0f, Color{190, 143, 143, 230});
             DrawText("QUIT", static_cast<int>(quitBtn.x + 145), static_cast<int>(quitBtn.y + 13), 22, RAYWHITE);
-            EndDrawing();
-            continue;
-        }
-
-        if (appMode == AppMode::SubmarineShowcase) {
-            showcaseDistance = std::clamp(showcaseDistance - GetMouseWheelMove() * 0.8f, 6.5f, 22.0f);
-            if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
-                showcaseYaw += mouseDelta.x * 0.01f;
-                showcasePitch = std::clamp(showcasePitch + mouseDelta.y * 0.006f, -0.35f, 0.65f);
-            }
-
-            Rectangle backBtn{24, 24, 210, 40};
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, backBtn)) {
-                appMode = AppMode::MainMenu;
-            }
-
-            BeginDrawing();
-            ClearBackground(Color{7, 12, 20, 255});
-            DrawRectangle(0, 0, screenWidth, screenHeight, Color{8, 16, 28, 255});
-
-#if SUBNOIR_HAS_RAYLIB
-            DrawHeroSubmarine3D(storyClock, showcaseYaw, showcasePitch, showcaseDistance, 0.35f);
-#else
-            DrawRectangle(220, 140, screenWidth - 440, screenHeight - 260, Color{25, 34, 45, 255});
-            DrawText("3D showcase requires raylib runtime.", 260, 200, 30, RAYWHITE);
-#endif
-
-            bool hoverBack = CheckCollisionPointRec(mouseNow, backBtn);
-            DrawRectangleRec(backBtn, hoverBack ? Color{52, 84, 102, 255} : Color{35, 60, 74, 255});
-            DrawRectangleLinesEx(backBtn, 2.0f, Color{150, 186, 205, 230});
-            DrawText("BACK TO MENU", 44, 35, 20, RAYWHITE);
-
-            DrawRectangle(0, screenHeight - 48, screenWidth, 48, Color{0, 0, 0, 160});
-            DrawText("3D controls: RMB drag rotate camera | Wheel zoom", 24, screenHeight - 31, 20, Color{198, 215, 226, 230});
             EndDrawing();
             continue;
         }
@@ -747,6 +745,7 @@ int main() {
         DrawRectangle(0, 0, screenWidth, screenHeight, scene.background);
 
         if (!scene.verticalCutaway) {
+            DrawSubmarineHullCutawayFrame(scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
             for (int i = -10; i <= 10; ++i) {
                 Vector2 a = ToScreen(scene, Vector2{-9.5f, static_cast<float>(i)}, 0.21f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
                 Vector2 b = ToScreen(scene, Vector2{9.5f, static_cast<float>(i)}, 0.21f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
@@ -758,7 +757,10 @@ int main() {
         }
 
         float playerDepth = playerWorld.x + playerWorld.y;
-        for (const auto& g : scene.solids) if (DepthOf(g) <= playerDepth || scene.verticalCutaway) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        for (const auto& g : scene.solids) {
+            if (!scene.verticalCutaway) DrawIsoPrismShadow(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+            if (DepthOf(g) <= playerDepth || scene.verticalCutaway) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        }
 
         Vector2 p = ToScreen(scene, playerWorld, 0.25f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         float bob = std::sin(frameCounter * 0.15f) * 1.6f * std::min(1.0f, Vector2Length(playerVel));
@@ -825,7 +827,7 @@ int main() {
 
         DrawRectangle(0, 0, screenWidth, 24, Color{0, 0, 0, 235});
         DrawRectangle(0, screenHeight - 24, screenWidth, 24, Color{0, 0, 0, 235});
-        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom | Start Dive = exterior->interior", screenWidth - 830, screenHeight - 18, 12, Color{180, 186, 194, 230});
+        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom", screenWidth - 560, screenHeight - 18, 12, Color{180, 186, 194, 230});
 
         if (isFading) DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));
         EndDrawing();
