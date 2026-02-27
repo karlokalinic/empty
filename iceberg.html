@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="hr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Svi projekti — Dubinski prikaz</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="hero hero--compact">
+      <div class="hero__copy">
+        <p class="hero__eyebrow">Svi projekti / Dubinski prikaz</p>
+        <h1>Raja → Pakao (cjelokupni katalog)</h1>
+        <p class="hero__lead">
+          Ovaj prikaz sadrži sve mikro-manuskripte, likove, pojmove, mjesta i eseje. Dubina se
+          povećava s količinom sadržaja — što je lista dulja, to je put dublji.
+        </p>
+        <div class="hero__cta">
+          <a class="button" href="index.html">Natrag na početak</a>
+          <a class="button button--ghost" href="#katalog">Kreni u katalog</a>
+        </div>
+      </div>
+      <aside class="hero__nav">
+        <div class="depth-gauge depth-gauge--static">
+          <span>Raj</span>
+          <span>Planine</span>
+          <span>Tlo</span>
+          <span>Špilje</span>
+          <span>Jezgra</span>
+          <span>Pakao</span>
+        </div>
+        <div class="depth-meter">
+          Trenutna visina: <span data-depth-meter>5000m</span>
+        </div>
+        <p class="hero__note">Svaki unos je najmanja jedinica — bez implementacije, ali spremno za rast.</p>
+      </aside>
+    </header>
+
+    <main id="katalog" class="section section--depth">
+      <div class="section__title">
+        <h2>Dubinski popis</h2>
+        <p>
+          Lijevo su površni i prezentacijski, desno najdublji biografski i umjetnički projekti.
+          Struktura je namjerno vertikalna, bez horizontalnog rasipanja.
+        </p>
+      </div>
+
+      <div class="iceberg">
+        <div class="iceberg__column">
+          <h3>Plićak</h3>
+          <ul>
+            <li>Web UI Experiments</li>
+            <li>Word Processor App</li>
+            <li>Synesthetic Player (Web)</li>
+            <li>Binary Duality (0/1 manifest)</li>
+            <li>Board Game Designs</li>
+            <li>Memoria Maris (poglavlje s audio + lyrics)</li>
+            <li>Certifikati &amp; diplome</li>
+          </ul>
+        </div>
+        <div class="iceberg__column">
+          <h3>Srednja dubina</h3>
+          <ul>
+            <li>Memoria Maris — 9 činova × 4 scene</li>
+            <li>Gusar (Memoria Maris) — autobiografija</li>
+            <li>Sirena (Memoria Maris) — ovisnost</li>
+            <li>Mjesec (Memoria Maris) — motivacija i posveta</li>
+            <li>Zrakoperka — manuskript + didaskalije</li>
+            <li>Marija (Zrakoperka) — profil lika</li>
+            <li>Treći svjetski rat (Zrakoperka) — lore</li>
+            <li>Video Ponor (novella)</li>
+            <li>Hebrili Horor (novella)</li>
+          </ul>
+        </div>
+        <div class="iceberg__column">
+          <h3>Dubina</h3>
+          <ul>
+            <li>Roditelji XY (esej)</li>
+            <li>Cenzura (esej)</li>
+            <li>Amfetamin (ovisnost)</li>
+            <li>Remek djelo (ovisnost, esej, lirika)</li>
+            <li>Digitalna forenzika (esej)</li>
+            <li>Kognitivne pristranosti modernog doba</li>
+            <li>Reprogramiranje mozga</li>
+            <li>Anatomija bijele laži</li>
+            <li>Tikovi</li>
+            <li>The Substance (recenzija filma)</li>
+          </ul>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div>
+        <h2>Povratak na početak</h2>
+        <p>Stranica je mapa: svaki unos je sjeme za kasniju implementaciju.</p>
+      </div>
+      <div class="footer__links">
+        <a href="index.html">Početna</a>
+        <a href="https://blog.karolegend.com">blog.karolegend.com</a>
+        <a href="https://store.karolegend.com">store.karolegend.com</a>
+      </div>
+    </footer>
+  </body>
+</html>
