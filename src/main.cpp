@@ -73,7 +73,7 @@ struct Scene {
     std::string onEnterFlag;
 };
 
-enum class AppMode { MainMenu, InGame, SubmarineShowcase, Ending };
+enum class AppMode { MainMenu, DiveIntro, InGame, SubmarineShowcase, Ending };
 enum class GameState { FreeRoam, Dialogue, Transition };
 
 static bool HasFlag(const std::vector<std::string>& flags, const std::string& f) {
@@ -150,6 +150,18 @@ static void DrawIsoPrism(const IsoPrism& g, const Scene& s, Vector2 origin, floa
     DrawQuad(p101, p111, p110, p100, g.right);
 }
 
+static void DrawIsoPrismTopEdges(const IsoPrism& g, const Scene& s, Vector2 origin, float scale, float angle, Vector2 pan, Color edge) {
+    Vector3 o = g.origin, sz = g.size;
+    Vector2 p001 = ToScreen(s, Vector2{o.x, o.y}, o.z + sz.z, origin, scale, angle, pan);
+    Vector2 p101 = ToScreen(s, Vector2{o.x + sz.x, o.y}, o.z + sz.z, origin, scale, angle, pan);
+    Vector2 p011 = ToScreen(s, Vector2{o.x, o.y + sz.y}, o.z + sz.z, origin, scale, angle, pan);
+    Vector2 p111 = ToScreen(s, Vector2{o.x + sz.x, o.y + sz.y}, o.z + sz.z, origin, scale, angle, pan);
+    DrawLineEx(p001, p101, 2.0f, edge);
+    DrawLineEx(p101, p111, 2.0f, edge);
+    DrawLineEx(p111, p011, 2.0f, edge);
+    DrawLineEx(p011, p001, 2.0f, edge);
+}
+
 static bool InRect(Vector2 p, const Rectangle& r) {
     return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
 }
@@ -212,7 +224,7 @@ static void PushLog(std::vector<std::string>& dialogueLog, const std::string& li
 }
 
 #if SUBNOIR_HAS_RAYLIB
-static void DrawHeroSubmarine3D(float timeSec, float yaw, float pitch, float distance) {
+static void DrawHeroSubmarine3D(float timeSec, float yaw, float pitch, float distance, float cutaway) {
     Camera3D cam{};
     Vector3 target{0.0f, 0.85f, 0.0f};
     cam.position = Vector3{
@@ -247,6 +259,17 @@ static void DrawHeroSubmarine3D(float timeSec, float yaw, float pitch, float dis
 
     DrawCube(Vector3{0.2f, 0.2f, 0.0f}, 5.2f, 0.22f, 1.7f, hullDark);
     DrawCube(Vector3{0.5f, 0.22f, 0.0f}, 4.4f, 0.2f, 2.25f, hullDark);
+
+    if (cutaway > 0.01f) {
+        float opening = 2.45f * cutaway;
+        DrawCube(Vector3{0.9f, 1.0f, 1.25f}, 4.9f, 1.8f, opening, Color{18, 24, 31, 255});
+        DrawCube(Vector3{-0.6f, 1.15f, 0.5f}, 1.2f, 0.55f, 0.5f, Color{154, 168, 176, 255});
+        DrawCube(Vector3{0.7f, 1.15f, 0.5f}, 1.3f, 0.55f, 0.5f, Color{146, 160, 170, 255});
+        DrawCube(Vector3{2.0f, 1.15f, 0.5f}, 1.1f, 0.55f, 0.5f, Color{140, 154, 164, 255});
+        DrawCube(Vector3{-0.6f, 0.6f, 0.5f}, 1.2f, 0.55f, 0.5f, Color{94, 112, 122, 255});
+        DrawCube(Vector3{0.7f, 0.6f, 0.5f}, 1.3f, 0.55f, 0.5f, Color{94, 112, 122, 255});
+        DrawCube(Vector3{2.0f, 0.6f, 0.5f}, 1.1f, 0.55f, 0.5f, Color{94, 112, 122, 255});
+    }
 
     DrawCube(Vector3{2.55f, 0.95f, 1.15f}, 0.95f, 0.3f, 0.2f, accent);
     DrawCube(Vector3{2.55f, 0.95f, -1.15f}, 0.95f, 0.3f, 0.2f, accent);
@@ -438,6 +461,7 @@ int main() {
     float showcaseYaw = 0.55f;
     float showcasePitch = 0.3f;
     float showcaseDistance = 12.0f;
+    float diveIntroTimer = 0.0f;
 
     bool running = true;
     while (running && !WindowShouldClose()) {
@@ -455,7 +479,7 @@ int main() {
             Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 40, 360, 54};
             Rectangle showcaseBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 28, 360, 48};
             Rectangle quitBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 92, 360, 48};
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) appMode = AppMode::InGame;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) { appMode = AppMode::DiveIntro; diveIntroTimer = 0.0f; }
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, showcaseBtn)) appMode = AppMode::SubmarineShowcase;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, quitBtn)) running = false;
 
@@ -503,7 +527,7 @@ int main() {
             DrawRectangle(0, 0, screenWidth, screenHeight, Color{8, 16, 28, 255});
 
 #if SUBNOIR_HAS_RAYLIB
-            DrawHeroSubmarine3D(storyClock, showcaseYaw, showcasePitch, showcaseDistance);
+            DrawHeroSubmarine3D(storyClock, showcaseYaw, showcasePitch, showcaseDistance, 0.35f);
 #else
             DrawRectangle(220, 140, screenWidth - 440, screenHeight - 260, Color{25, 34, 45, 255});
             DrawText("3D showcase requires raylib runtime.", 260, 200, 30, RAYWHITE);
@@ -517,6 +541,39 @@ int main() {
             DrawRectangle(0, screenHeight - 48, screenWidth, 48, Color{0, 0, 0, 160});
             DrawText("3D controls: RMB drag rotate camera | Wheel zoom", 24, screenHeight - 31, 20, Color{198, 215, 226, 230});
             EndDrawing();
+            continue;
+        }
+
+        if (appMode == AppMode::DiveIntro) {
+            diveIntroTimer += dt;
+            float t = std::clamp(diveIntroTimer / 5.0f, 0.0f, 1.0f);
+
+            BeginDrawing();
+            ClearBackground(Color{5, 9, 14, 255});
+            DrawRectangle(0, 0, screenWidth, screenHeight, Color{7, 15, 24, 255});
+#if SUBNOIR_HAS_RAYLIB
+            float yaw = 0.78f * (1.0f - t) + 0.05f * t;
+            float pitch = 0.42f * (1.0f - t) + 0.08f * t;
+            float dist = 14.0f * (1.0f - t) + 8.6f * t;
+            float cutaway = std::clamp((t - 0.35f) / 0.65f, 0.0f, 1.0f);
+            DrawHeroSubmarine3D(storyClock, yaw, pitch, dist, cutaway);
+#else
+            DrawRectangle(180, 120, screenWidth - 360, screenHeight - 240, Color{25, 34, 45, 255});
+            DrawText("Intro 3D submarine requires raylib runtime.", 240, 210, 30, RAYWHITE);
+#endif
+            DrawRectangle(0, 0, screenWidth, 90, Color{4, 7, 12, 180});
+            DrawText("DIVE SEQUENCE // Exterior to interior cutaway", 24, 26, 28, Color{215, 224, 230, 240});
+            DrawRectangle(24, 70, static_cast<int>((screenWidth - 48) * t), 7, Color{108, 170, 210, 220});
+            DrawRectangleLinesEx(Rectangle{24, 70, static_cast<float>(screenWidth - 48), 7}, 1.0f, Color{150, 196, 220, 170});
+            if (t > 0.72f) {
+                DrawRectangle(0, 0, screenWidth, screenHeight, Color{8, 12, 18, static_cast<unsigned char>(std::clamp((t - 0.72f) * 255.0f, 0.0f, 220.0f))});
+            }
+            EndDrawing();
+
+            if (diveIntroTimer >= 5.0f) {
+                appMode = AppMode::InGame;
+                cameraAngle = 0.08f;
+            }
             continue;
         }
 
@@ -712,7 +769,11 @@ int main() {
         if (!scene.verticalCutaway) {
             for (const auto& g : scene.solids) if (DepthOf(g) > playerDepth) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         }
-        for (const auto& w : scene.wallsAlways) DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        if (scene.verticalCutaway) {
+            for (const auto& w : scene.wallsAlways) DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        } else {
+            for (const auto& w : scene.wallsAlways) DrawIsoPrismTopEdges(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan, Color{172, 188, 201, 190});
+        }
         for (const auto& d : scene.decals) DrawDecal(scene, d, mats, baseOrigin, cameraZoom, cameraAngle, cameraPan, storyClock);
 
         if (scene.verticalCutaway) {
@@ -764,7 +825,7 @@ int main() {
 
         DrawRectangle(0, 0, screenWidth, 24, Color{0, 0, 0, 235});
         DrawRectangle(0, screenHeight - 24, screenWidth, 24, Color{0, 0, 0, 235});
-        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom", screenWidth - 560, screenHeight - 18, 12, Color{180, 186, 194, 230});
+        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom | Start Dive = exterior->interior", screenWidth - 830, screenHeight - 18, 12, Color{180, 186, 194, 230});
 
         if (isFading) DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));
         EndDrawing();
