@@ -32,7 +32,8 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 
 ### Vizualni isometric/3D upgrade
 - Dodan **faux 3D isometric renderer** (projekcija + volumetrijski prism objekti).
-- Scene imaju ručno definiranu geometriju (`IsoPrism`) s top/left/right shadingom.
+- Scene imaju ručno definiranu geometriju (`IsoPrism`) s top/left/right shadingom i punim zidovima/volumenima (jasniji level design).
+- Dodan depth layering: objekti se crtaju ispred/iza lika po world dubini (2.5D osjećaj).
 - Dodan floor grid za jači isometric čitljiv output.
 - Dodani analog-horror overlay efekti: scanlines + pulsirajući crveni cast.
 
@@ -90,6 +91,12 @@ Napomena: na Windowsu je izlazni fajl `submarine_noir.exe`, ne `./build/submarin
 ### Offline/CI fallback (bez raylib)
 Ako okruženje ne može instalirati/povući raylib, projekt se i dalje kompilira uz headless backend.
 Isti build koraci vrijede, ali runtime je no-op render (korisno za provjeru da je kod i arhitektura ispravna).
+
+Možeš i ručno forsirati compat mod (čak i kad raylib postoji):
+```bash
+cmake -S . -B build -DFORCE_RAYLIB_COMPAT=ON
+cmake --build build -j
+```
 
 ---
 

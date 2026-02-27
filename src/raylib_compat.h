@@ -1,12 +1,16 @@
 #pragma once
 
-#if __has_include(<raylib.h>)
+#if defined(SUBNOIR_HAS_RAYLIB) && (SUBNOIR_HAS_RAYLIB == 0)
+// Forced compatibility mode from CMake.
+#elif __has_include(<raylib.h>)
 #include <raylib.h>
 #include <raymath.h>
 #define SUBNOIR_HAS_RAYLIB 1
 #else
 #define SUBNOIR_HAS_RAYLIB 0
+#endif
 
+#if SUBNOIR_HAS_RAYLIB == 0
 #include <cstdarg>
 
 struct Vector2 {

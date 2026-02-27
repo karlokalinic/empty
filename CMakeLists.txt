@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(USE_FETCHCONTENT_RAYLIB "Download raylib automatically if not found" ON)
+# Option to force using local compatibility backend instead of linking raylib
+option(FORCE_RAYLIB_COMPAT "Force using the local raylib compatibility backend" OFF)
 
 find_package(raylib QUIET)
 
@@ -30,15 +32,21 @@ target_compile_options(submarine_noir PRIVATE
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>
 )
 
-if(TARGET raylib)
-  target_link_libraries(submarine_noir PRIVATE raylib)
-elseif(TARGET raylib::raylib)
-  target_link_libraries(submarine_noir PRIVATE raylib::raylib)
-else()
-  message(WARNING "raylib target not found. Building with local headless compatibility backend.")
+if(FORCE_RAYLIB_COMPAT)
+  message(STATUS "Forcing raylib compatibility backend (SUBNOIR_HAS_RAYLIB=0)")
+  target_compile_definitions(submarine_noir PRIVATE SUBNOIR_HAS_RAYLIB=0)
   target_sources(submarine_noir PRIVATE src/raylib_compat.cpp)
+else()
+  if(TARGET raylib)
+    target_link_libraries(submarine_noir PRIVATE raylib)
+  elseif(TARGET raylib::raylib)
+    target_link_libraries(submarine_noir PRIVATE raylib::raylib)
+  else()
+    message(WARNING "raylib target not found. Building with local headless compatibility backend.")
+    target_sources(submarine_noir PRIVATE src/raylib_compat.cpp)
+  endif()
 endif()
 
-if ((TARGET raylib OR TARGET raylib::raylib) AND UNIX AND NOT APPLE)
+if ((TARGET raylib OR TARGET raylib::raylib) AND UNIX AND NOT APPLE AND NOT FORCE_RAYLIB_COMPAT)
   target_link_libraries(submarine_noir PRIVATE m pthread dl rt X11)
 endif()
