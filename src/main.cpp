@@ -13,6 +13,8 @@ struct Choice {
     std::vector<std::string> blockedByFlags;
     int requiredKeycardLevel = 0;
     std::string setFlag;
+    std::string onceFlag;
+    std::string alreadyText;
 };
 
 struct DialogueNode {
@@ -37,6 +39,8 @@ struct Hotspot {
     int grantKeycardLevel = 0;
     std::string grantFlag;
     std::string deniedText;
+    std::string onceFlag;
+    std::string alreadyText;
 };
 
 struct IsoPrism { Vector3 origin; Vector3 size; Color top; Color left; Color right; };
@@ -69,7 +73,7 @@ struct Scene {
     std::string onEnterFlag;
 };
 
-enum class AppMode { MainMenu, InGame, Ending };
+enum class AppMode { MainMenu, InGame, SubmarineShowcase, Ending };
 enum class GameState { FreeRoam, Dialogue, Transition };
 
 static bool HasFlag(const std::vector<std::string>& flags, const std::string& f) {
@@ -174,7 +178,7 @@ static Texture2D LoadMaterialTexture(const char* path) {
     return LoadTexture(path);
 }
 
-static void DrawDecal(const Scene& scene, const PropDecal& d, const MaterialBank& mats, Vector2 origin, float scale, float angle, Vector2 pan) {
+static void DrawDecal(const Scene& scene, const PropDecal& d, const MaterialBank& mats, Vector2 origin, float scale, float angle, Vector2 pan, float timeSec) {
     const Texture2D* tex = &mats.steel;
     if (d.material == "rust") tex = &mats.rust;
     else if (d.material == "grate") tex = &mats.grate;
@@ -184,15 +188,84 @@ static void DrawDecal(const Scene& scene, const PropDecal& d, const MaterialBank
     Vector2 p1 = ToScreen(scene, Vector2{d.worldRect.x + d.worldRect.width, d.worldRect.y + d.worldRect.height}, d.z, origin, scale, angle, pan);
     Rectangle dst{std::min(p0.x,p1.x), std::min(p0.y,p1.y), std::fabs(p1.x-p0.x)+1.0f, std::fabs(p1.y-p0.y)+1.0f};
     Rectangle src{0,0, static_cast<float>(tex->width), static_cast<float>(tex->height)};
+    if (d.material == "water") {
+        src.x = 6.0f * std::sin(timeSec * 0.85f);
+        src.y = 3.0f * std::cos(timeSec * 0.62f);
+    }
     DrawTexturePro(*tex, src, dst, Vector2{0,0}, 0.0f, d.tint);
+    if (d.material == "water") {
+        DrawRectangleRec(dst, Color{72, 122, 168, static_cast<unsigned char>(28 + 12 * std::sin(timeSec * 2.1f))});
+    }
 }
 
 static bool ChoiceUnlocked(const Choice& c, const std::vector<std::string>& flags, int keycardLevel) {
     if (keycardLevel < c.requiredKeycardLevel) return false;
+    if (!c.onceFlag.empty() && HasFlag(flags, c.onceFlag)) return false;
     for (const auto& f : c.requiresFlags) if (!HasFlag(flags, f)) return false;
     for (const auto& f : c.blockedByFlags) if (HasFlag(flags, f)) return false;
     return true;
 }
+
+static void PushLog(std::vector<std::string>& dialogueLog, const std::string& line) {
+    dialogueLog.push_back(line);
+    if (dialogueLog.size() > 14) dialogueLog.erase(dialogueLog.begin(), dialogueLog.begin() + 1);
+}
+
+#if SUBNOIR_HAS_RAYLIB
+static void DrawHeroSubmarine3D(float timeSec, float yaw, float pitch, float distance) {
+    Camera3D cam{};
+    Vector3 target{0.0f, 0.85f, 0.0f};
+    cam.position = Vector3{
+        target.x + std::cos(yaw) * std::cos(pitch) * distance,
+        target.y + std::sin(pitch) * distance,
+        target.z + std::sin(yaw) * std::cos(pitch) * distance
+    };
+    cam.target = target;
+    cam.up = Vector3{0.0f, 1.0f, 0.0f};
+    cam.fovy = 40.0f;
+    cam.projection = CAMERA_PERSPECTIVE;
+
+    BeginMode3D(cam);
+    DrawGrid(26, 1.0f);
+
+    Color hullMain{86, 99, 112, 255};
+    Color hullDark{58, 67, 78, 255};
+    Color accent{167, 89, 70, 255};
+
+    Vector3 tail{-3.4f, 0.85f, 0.0f};
+    Vector3 nose{3.3f, 0.85f, 0.0f};
+    DrawCylinderEx(tail, nose, 1.15f, 1.12f, 30, hullMain);
+    DrawSphere(tail, 1.13f, hullDark);
+    DrawSphere(nose, 1.04f, hullMain);
+
+    DrawCube(Vector3{-0.2f, 2.0f, 0.0f}, 2.15f, 1.7f, 1.5f, hullDark);
+    DrawCube(Vector3{0.25f, 2.75f, 0.0f}, 1.0f, 0.72f, 0.74f, hullMain);
+
+    DrawCube(Vector3{-3.5f, 0.65f, 0.0f}, 0.5f, 0.2f, 2.6f, accent);
+    DrawCube(Vector3{-3.65f, 0.65f, 1.08f}, 0.55f, 0.2f, 0.62f, Color{178, 113, 89, 255});
+    DrawCube(Vector3{-3.65f, 0.65f, -1.08f}, 0.55f, 0.2f, 0.62f, Color{178, 113, 89, 255});
+
+    DrawCube(Vector3{0.2f, 0.2f, 0.0f}, 5.2f, 0.22f, 1.7f, hullDark);
+    DrawCube(Vector3{0.5f, 0.22f, 0.0f}, 4.4f, 0.2f, 2.25f, hullDark);
+
+    DrawCube(Vector3{2.55f, 0.95f, 1.15f}, 0.95f, 0.3f, 0.2f, accent);
+    DrawCube(Vector3{2.55f, 0.95f, -1.15f}, 0.95f, 0.3f, 0.2f, accent);
+
+    for (int i = 0; i < 4; ++i) {
+        float x = -0.8f + i * 1.35f;
+        DrawSphere(Vector3{x, 1.42f, 1.0f}, 0.2f, Color{106, 180, 205, 245});
+        DrawSphere(Vector3{x, 1.42f, -1.0f}, 0.2f, Color{106, 180, 205, 245});
+    }
+
+    for (int i = 0; i < 10; ++i) {
+        float fi = static_cast<float>(i);
+        Vector3 bubble{2.8f + 0.28f * fi, 0.2f + std::fmod(timeSec * 0.9f + fi * 0.55f, 2.7f), -1.4f + 0.18f * fi};
+        DrawSphere(bubble, 0.04f + 0.008f * (i % 3), Color{162, 196, 210, 130});
+    }
+
+    EndMode3D();
+}
+#endif
 
 int main() {
     const int screenWidth = 1366;
@@ -214,10 +287,10 @@ int main() {
         "control_room", false, Color{14, 20, 26, 255}, Rectangle{-7.2f, -6.0f, 14.4f, 12.0f},
         {Rectangle{-1.2f, -1.7f, 2.4f, 3.4f}, Rectangle{3.0f, -3.0f, 1.7f, 1.9f}, Rectangle{-2.5f, 2.1f, 2.1f, 1.5f}},
         {
-            {Rectangle{2.8f, -2.8f, 1.7f, 1.6f}, "Command Console", 1},
+            {Rectangle{2.8f, -2.8f, 1.7f, 1.6f}, "Command Console", 1, "", {0, 0}, false, {0, 0}, 0, "", 0, "", "", "seen_console", "Console already reviewed."},
             {Rectangle{-6.8f, -0.5f, 0.9f, 2.2f}, "Bulkhead Door", -1, "engine_corridor", {4.8f, 0.2f}},
-            {Rectangle{-2.4f, 2.1f, 1.8f, 1.3f}, "Captain's Chair", 4},
-            {Rectangle{4.8f, 2.8f, 1.0f, 1.0f}, "Security Locker", -1, "", {0, 0}, false, {0,0}, 0, "", 1, "got_keycard_lv1", "Locker is jammed."},
+            {Rectangle{-2.4f, 2.1f, 1.8f, 1.3f}, "Captain's Chair", 4, "", {0, 0}, false, {0, 0}, 0, "", 0, "", "", "seen_captain_chair", "Only cold metal remains."},
+            {Rectangle{4.8f, 2.8f, 1.0f, 1.0f}, "Security Locker", -1, "", {0, 0}, false, {0,0}, 0, "", 1, "got_keycard_lv1", "Locker is jammed.", "looted_locker", "Locker is empty."},
             {Rectangle{5.6f, -4.4f, 1.0f, 1.0f}, "Command Hatch", 11, "", {0,0}, false, {0,0}, 2, "", 0, "", "Requires Keycard L2"},
             {Rectangle{0.8f, 4.5f, 1.2f, 1.2f}, "Lift to Bunker Stack", -1, "vertical_bunker", {0.0f, 2.0f}},
         },
@@ -245,8 +318,8 @@ int main() {
         {Rectangle{-1.4f, -0.6f, 2.0f, 3.2f}, Rectangle{-4.6f, -2.7f, 2.4f, 1.6f}, Rectangle{2.7f, -2.1f, 1.9f, 1.5f}},
         {
             {Rectangle{6.2f, -0.4f, 1.1f, 1.8f}, "Return to Control", -1, "control_room", {-5.4f, 0.2f}},
-            {Rectangle{-2.8f, -1.7f, 2.0f, 1.6f}, "Maintenance Hatch", 7},
-            {Rectangle{1.4f, 2.1f, 1.9f, 1.4f}, "Crew Journal", 10, "", {0, 0}, false, {0,0}, 0, "", 0, "got_old_blueprint", ""},
+            {Rectangle{-2.8f, -1.7f, 2.0f, 1.6f}, "Maintenance Hatch", 7, "", {0, 0}, false, {0, 0}, 0, "", 0, "", "", "checked_hatch", "Hatch already forced once."},
+            {Rectangle{1.4f, 2.1f, 1.9f, 1.4f}, "Crew Journal", 10, "", {0, 0}, false, {0,0}, 0, "", 0, "got_old_blueprint", "", "read_journal", "No unread pages left."},
         },
         {
             {{-7.8f, -5.3f, 0}, {15.6f, 10.8f, 0.2f}, Color{58, 32, 34, 255}, Color{39, 22, 24, 255}, Color{46, 26, 28, 255}},
@@ -277,8 +350,8 @@ int main() {
             {Rectangle{-5.8f, -10.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -13.5f}},
             {Rectangle{-3.0f, -10.8f, 1.4f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.2f, -6.0f}},
             {Rectangle{-3.0f, -6.8f, 1.4f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.2f, -2.0f}},
-            {Rectangle{3.8f, -2.4f, 1.6f, 1.0f}, "Key Office", 12, "", {0,0}, false, {0,0}, 0, "", 2, "got_keycard_lv2", ""},
-            {Rectangle{3.6f, -10.4f, 1.6f, 1.0f}, "Locked Cache", 13, "", {0,0}, false, {0,0}, 2, "", 0, "got_mechanical_key", "Requires Keycard L2"},
+            {Rectangle{3.8f, -2.4f, 1.6f, 1.0f}, "Key Office", 12, "", {0,0}, false, {0,0}, 0, "", 2, "got_keycard_lv2", "", "collected_keycard_l2", "No more keycards here."},
+            {Rectangle{3.6f, -10.4f, 1.6f, 1.0f}, "Locked Cache", 13, "", {0,0}, false, {0,0}, 2, "", 0, "got_mechanical_key", "Requires Keycard L2", "opened_locked_cache", "Cache is already stripped."},
             {Rectangle{5.8f, -13.5f, 1.1f, 1.1f}, "Return to Command", -1, "control_room", {-4.2f, 0.0f}},
         },
         {
@@ -322,8 +395,8 @@ int main() {
             {"Stay and hold command.", 16, {}, {}, 0, ""},
             {"Abort.", -1, {}, {}, 0, ""}
         }, 10.0f, 17, "hesitated_final_gate"}},
-        {12, {"Officer", "You found us. This gives you Keycard Level 2.", {{"Take card.", -1, {}, {}, 0, "got_keycard_lv2"}}}},
-        {13, {"Cache", "Inside is an old mechanical key and emergency codes.", {{"Take key.", -1, {}, {}, 0, "got_mechanical_key"}}}},
+        {12, {"Officer", "You found us. This gives you Keycard Level 2.", {{"Take card.", -1, {}, {}, 0, "got_keycard_lv2", "took_card_dialog", "Card already taken."}}}},
+        {13, {"Cache", "Inside is an old mechanical key and emergency codes.", {{"Take key.", -1, {}, {}, 0, "got_mechanical_key", "took_key_dialog", "Nothing else inside."}}}},
         {14, {"Ops AI", "Then you already know this was planned long ago.", {{"Use that intel now.", -1, {}, {}, 0, "bunker_intel_used"}}}},
         {15, {"Ending", "You evacuate with survivors. The submarine sleeps beneath ice.", {{"END: Evacuation", -1, {}, {}, 0, "ending_evac"}}}},
         {16, {"Ending", "You stay behind, lock every hatch, and disappear with the hull.", {{"END: Last Captain", -1, {}, {}, 0, "ending_last_captain"}}}},
@@ -362,6 +435,9 @@ int main() {
     int frameCounter = 0;
     float storyClock = 0.0f;
     int worldBit = 0;
+    float showcaseYaw = 0.55f;
+    float showcasePitch = 0.3f;
+    float showcaseDistance = 12.0f;
 
     bool running = true;
     while (running && !WindowShouldClose()) {
@@ -376,9 +452,11 @@ int main() {
         prevMouse = mouseNow;
 
         if (appMode == AppMode::MainMenu) {
-            Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 20, 360, 54};
-            Rectangle quitBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 50, 360, 48};
+            Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 40, 360, 54};
+            Rectangle showcaseBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 28, 360, 48};
+            Rectangle quitBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 92, 360, 48};
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) appMode = AppMode::InGame;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, showcaseBtn)) appMode = AppMode::SubmarineShowcase;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, quitBtn)) running = false;
 
             BeginDrawing();
@@ -387,17 +465,57 @@ int main() {
             for (int y = 0; y < screenHeight; y += 3) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, static_cast<unsigned char>(8 + y % 8)});
             DrawRectangle(0, 0, screenWidth, 170, Color{130, 20, 28, 20});
             DrawText("SUBMARINE NOIR", screenWidth / 2 - 180, 132, 48, Color{236, 224, 210, 255});
-            DrawText("Vertical stacks, keys, timed choices, branching endings", screenWidth / 2 - 280, 188, 22, Color{177, 191, 204, 240});
+            DrawText("Isometric command sim + 3D submarine showcase", screenWidth / 2 - 245, 188, 22, Color{177, 191, 204, 240});
             DrawText("World logic: every major state resolves to 0/1 (binary bit)", screenWidth / 2 - 285, 218, 16, Color{155, 175, 192, 230});
 
             bool hoverStart = CheckCollisionPointRec(mouseNow, startBtn);
+            bool hoverShowcase = CheckCollisionPointRec(mouseNow, showcaseBtn);
             bool hoverQuit = CheckCollisionPointRec(mouseNow, quitBtn);
             DrawRectangleRec(startBtn, hoverStart ? Color{72, 88, 102, 255} : Color{48, 62, 74, 255});
             DrawRectangleLinesEx(startBtn, 2.0f, Color{168, 188, 206, 230});
             DrawText("START DIVE", static_cast<int>(startBtn.x + 108), static_cast<int>(startBtn.y + 15), 24, RAYWHITE);
+
+            DrawRectangleRec(showcaseBtn, hoverShowcase ? Color{66, 98, 120, 255} : Color{42, 72, 92, 255});
+            DrawRectangleLinesEx(showcaseBtn, 2.0f, Color{140, 196, 224, 230});
+            DrawText("VIEW 3D SUBMARINE", static_cast<int>(showcaseBtn.x + 65), static_cast<int>(showcaseBtn.y + 13), 22, RAYWHITE);
+
             DrawRectangleRec(quitBtn, hoverQuit ? Color{80, 50, 50, 255} : Color{58, 38, 38, 255});
             DrawRectangleLinesEx(quitBtn, 2.0f, Color{190, 143, 143, 230});
             DrawText("QUIT", static_cast<int>(quitBtn.x + 145), static_cast<int>(quitBtn.y + 13), 22, RAYWHITE);
+            EndDrawing();
+            continue;
+        }
+
+        if (appMode == AppMode::SubmarineShowcase) {
+            showcaseDistance = std::clamp(showcaseDistance - GetMouseWheelMove() * 0.8f, 6.5f, 22.0f);
+            if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
+                showcaseYaw += mouseDelta.x * 0.01f;
+                showcasePitch = std::clamp(showcasePitch + mouseDelta.y * 0.006f, -0.35f, 0.65f);
+            }
+
+            Rectangle backBtn{24, 24, 210, 40};
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, backBtn)) {
+                appMode = AppMode::MainMenu;
+            }
+
+            BeginDrawing();
+            ClearBackground(Color{7, 12, 20, 255});
+            DrawRectangle(0, 0, screenWidth, screenHeight, Color{8, 16, 28, 255});
+
+#if SUBNOIR_HAS_RAYLIB
+            DrawHeroSubmarine3D(storyClock, showcaseYaw, showcasePitch, showcaseDistance);
+#else
+            DrawRectangle(220, 140, screenWidth - 440, screenHeight - 260, Color{25, 34, 45, 255});
+            DrawText("3D showcase requires raylib runtime.", 260, 200, 30, RAYWHITE);
+#endif
+
+            bool hoverBack = CheckCollisionPointRec(mouseNow, backBtn);
+            DrawRectangleRec(backBtn, hoverBack ? Color{52, 84, 102, 255} : Color{35, 60, 74, 255});
+            DrawRectangleLinesEx(backBtn, 2.0f, Color{150, 186, 205, 230});
+            DrawText("BACK TO MENU", 44, 35, 20, RAYWHITE);
+
+            DrawRectangle(0, screenHeight - 48, screenWidth, 48, Color{0, 0, 0, 160});
+            DrawText("3D controls: RMB drag rotate camera | Wheel zoom", 24, screenHeight - 31, 20, Color{198, 215, 226, 230});
             EndDrawing();
             continue;
         }
@@ -447,15 +565,21 @@ int main() {
                     clickedHotspot = true;
 
                     if (keycardLevel < h.requiredKeycardLevel || (!h.requiredFlag.empty() && !HasFlag(flags, h.requiredFlag))) {
-                        if (!h.deniedText.empty()) dialogueLog.push_back("LOCKED: " + h.deniedText);
+                        if (!h.deniedText.empty()) PushLog(dialogueLog, "LOCKED: " + h.deniedText);
+                        break;
+                    }
+
+                    if (!h.onceFlag.empty() && HasFlag(flags, h.onceFlag)) {
+                        PushLog(dialogueLog, h.alreadyText.empty() ? (h.label + " already handled.") : h.alreadyText);
                         break;
                     }
 
                     if (h.grantKeycardLevel > 0) {
                         keycardLevel = std::max(keycardLevel, h.grantKeycardLevel);
-                        dialogueLog.push_back("Acquired Keycard Level " + std::to_string(h.grantKeycardLevel));
+                        PushLog(dialogueLog, "Acquired Keycard Level " + std::to_string(h.grantKeycardLevel));
                     }
                     SetFlag(flags, h.grantFlag);
+                    SetFlag(flags, h.onceFlag);
 
                     if (h.movePlayer) {
                         targetWorld = FindValidTarget(h.moveTarget, scene, playerWorld);
@@ -515,18 +639,18 @@ int main() {
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, btn)) {
                     const Choice& pick = node.choices[i];
                     if (!ChoiceUnlocked(pick, flags, keycardLevel)) {
-                        dialogueLog.push_back("Choice locked.");
+                        PushLog(dialogueLog, pick.alreadyText.empty() ? "Choice locked." : pick.alreadyText);
                         break;
                     }
 
                     SetFlag(flags, pick.setFlag);
+                    SetFlag(flags, pick.onceFlag);
                     if (pick.setFlag == "ending_evac") endingText = "You evacuated with survivors.";
                     if (pick.setFlag == "ending_last_captain") endingText = "You stayed and sealed the hull.";
                     if (pick.setFlag == "ending_drowned") endingText = "You hesitated. Flood took the decks.";
 
-                    dialogueLog.push_back(node.speaker + ": " + node.line);
-                    dialogueLog.push_back("YOU: " + pick.text);
-                    if (dialogueLog.size() > 14) dialogueLog.erase(dialogueLog.begin(), dialogueLog.begin() + 2);
+                    PushLog(dialogueLog, node.speaker + ": " + node.line);
+                    PushLog(dialogueLog, "YOU: " + pick.text);
 
                     activeDialogueNode = pick.nextNode;
                     if (HasFlag(flags, "ending_evac") || HasFlag(flags, "ending_last_captain") || HasFlag(flags, "ending_drowned")) {
@@ -589,7 +713,7 @@ int main() {
             for (const auto& g : scene.solids) if (DepthOf(g) > playerDepth) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         }
         for (const auto& w : scene.wallsAlways) DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
-        for (const auto& d : scene.decals) DrawDecal(scene, d, mats, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        for (const auto& d : scene.decals) DrawDecal(scene, d, mats, baseOrigin, cameraZoom, cameraAngle, cameraPan, storyClock);
 
         if (scene.verticalCutaway) {
             for (int y = 0; y < screenHeight; y += 4) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, 10});

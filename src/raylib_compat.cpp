@@ -101,3 +101,4 @@ const char* TextFormat(const char* text, ...) {
     return buffer;
 }
 
+#endif
