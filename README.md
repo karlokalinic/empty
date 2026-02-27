@@ -220,6 +220,35 @@ Za stabilnu kvalitetu je i dalje najbolje:
 
 ---
 
+
+## Windows quick fix for errors from your log
+Ako vidiš grešku `Parse error ... "<<<<<<<"` u `CMakeLists.txt`, u fajlu su ostali merge conflict markeri.
+
+1) Provjeri marker linije:
+```powershell
+Select-String -Path .\CMakeLists.txt -Pattern '<<<<<<<|=======|>>>>>>>'
+```
+
+2) Ako nešto vrati, otvori `CMakeLists.txt` i obriši conflict blok (`<<<<<<<`, `=======`, `>>>>>>>`) pa ostavi samo jednu finalnu verziju.
+
+3) Očisti build i ponovno konfiguriraj:
+```powershell
+Remove-Item -Recurse -Force .\build -ErrorAction SilentlyContinue
+cmake -S . -B build
+cmake --build build -j
+.\build\submarine_noir.exe
+```
+
+Napomena:
+- izvršni fajl je `submarine_noir.exe` (nije `submarine_noir.execmake`).
+- Ne upisuj README komentare u isti red s komandama (npr. `./build/submarine_noir# ...`).
+
+Ako je PowerShell policy blokirao skriptu (`running scripts is disabled`), pokreni helper skriptu ovako:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Clean
+```
+
 ## Windows build output explained
 Ako vidiš ovo u PowerShellu:
 - `CMake Deprecation Warning at build/_deps/raylib-src/...` -> to je warning iz **upstream raylib CMake-a**, nije greška u ovom projektu.
