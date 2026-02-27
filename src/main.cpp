@@ -304,14 +304,14 @@ static void DrawHeroSubmarine3D(float timeSec, float yaw, float pitch, float dis
     DrawCube(Vector3{0.5f, 0.22f, 0.0f}, 4.4f, 0.2f, 2.25f, hullDark);
 
     if (cutaway > 0.01f) {
-        float opening = 2.45f * cutaway;
-        DrawCube(Vector3{0.9f, 1.0f, 1.25f}, 4.9f, 1.8f, opening, Color{18, 24, 31, 255});
-        DrawCube(Vector3{-0.6f, 1.15f, 0.5f}, 1.2f, 0.55f, 0.5f, Color{154, 168, 176, 255});
-        DrawCube(Vector3{0.7f, 1.15f, 0.5f}, 1.3f, 0.55f, 0.5f, Color{146, 160, 170, 255});
-        DrawCube(Vector3{2.0f, 1.15f, 0.5f}, 1.1f, 0.55f, 0.5f, Color{140, 154, 164, 255});
-        DrawCube(Vector3{-0.6f, 0.6f, 0.5f}, 1.2f, 0.55f, 0.5f, Color{94, 112, 122, 255});
-        DrawCube(Vector3{0.7f, 0.6f, 0.5f}, 1.3f, 0.55f, 0.5f, Color{94, 112, 122, 255});
-        DrawCube(Vector3{2.0f, 0.6f, 0.5f}, 1.1f, 0.55f, 0.5f, Color{94, 112, 122, 255});
+        float openZ = 1.12f + 1.25f * cutaway;
+        DrawCube(Vector3{-0.1f, 1.02f, openZ}, 5.0f, 0.16f, 0.16f, Color{168, 182, 194, 255});
+        DrawCube(Vector3{-0.1f, 0.58f, openZ}, 5.0f, 0.16f, 0.16f, Color{136, 152, 166, 255});
+        for (int i = 0; i < 5; ++i) {
+            float x = -1.75f + i * 1.15f;
+            DrawCube(Vector3{x, 0.8f, openZ}, 0.16f, 0.6f, 0.14f, Color{122, 136, 148, 255});
+            DrawCube(Vector3{x, 0.46f, 0.45f}, 0.85f, 0.2f, 0.45f, Color{90, 108, 120, 255});
+        }
     }
 
     DrawCube(Vector3{2.55f, 0.95f, 1.15f}, 0.95f, 0.3f, 0.2f, accent);
@@ -380,7 +380,9 @@ int main() {
             {"rust", Rectangle{-5.9f,-4.1f,0.4f,8.0f}, 0.65f, Color{255,255,255,95}},
             {"water", Rectangle{-6.4f,-5.75f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}},
             {"steel", Rectangle{-6.3f,3.95f,3.9f,0.5f}, 1.2f, Color{255,255,255,92}},
-            {"rust", Rectangle{3.95f,-0.3f,0.55f,3.7f}, 0.62f, Color{255,255,255,92}}
+            {"rust", Rectangle{3.95f,-0.3f,0.55f,3.7f}, 0.62f, Color{255,255,255,92}},
+            {"grate", Rectangle{-1.2f,-1.7f,2.4f,3.4f}, 0.23f, Color{255,255,255,72}},
+            {"steel", Rectangle{1.8f,3.6f,2.7f,0.65f}, 1.1f, Color{255,255,255,88}}
         },
         "CONTROL ROOM // pressure, steel, failing trust", "visited_control"
     };
@@ -410,7 +412,9 @@ int main() {
             {"grate", Rectangle{-2.5f,-0.3f,4.6f,0.35f}, 0.22f, Color{255,255,255,96}},
             {"water", Rectangle{-6.9f,-5.0f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}},
             {"steel", Rectangle{3.5f,-3.9f,0.7f,6.6f}, 0.62f, Color{255,255,255,95}},
-            {"grate", Rectangle{-4.2f,3.2f,3.3f,0.4f}, 0.25f, Color{255,255,255,92}}
+            {"grate", Rectangle{-4.2f,3.2f,3.3f,0.4f}, 0.25f, Color{255,255,255,92}},
+            {"steel", Rectangle{-1.4f,-0.6f,2.0f,3.2f}, 0.9f, Color{255,255,255,84}},
+            {"rust", Rectangle{1.2f,-3.8f,0.9f,0.9f}, 1.2f, Color{255,255,255,98}}
         },
         "ENGINE CORRIDOR // rust and red emergency strips", "visited_engine"
     };
@@ -418,18 +422,20 @@ int main() {
     scenes["vertical_bunker"] = Scene{
         "vertical_bunker", true, Color{10, 14, 20, 255}, Rectangle{-7.0f, -14.0f, 14.0f, 16.0f},
         {
-            Rectangle{-7.0f, -1.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -5.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -9.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -13.8f, 14.0f, 0.6f},
-            Rectangle{-2.2f, -10.4f, 2.2f, 0.6f}, Rectangle{2.0f, -6.4f, 2.0f, 0.6f}
+            Rectangle{-7.0f, -1.8f, 4.5f, 0.6f}, Rectangle{-1.6f, -1.8f, 8.6f, 0.6f},
+            Rectangle{-7.0f, -5.8f, 4.5f, 0.6f}, Rectangle{-1.6f, -5.8f, 3.2f, 0.6f}, Rectangle{4.1f, -5.8f, 2.9f, 0.6f},
+            Rectangle{-7.0f, -9.8f, 4.5f, 0.6f}, Rectangle{-1.6f, -9.8f, 8.6f, 0.6f},
+            Rectangle{-7.0f, -13.8f, 4.5f, 0.6f}, Rectangle{-1.6f, -13.8f, 6.8f, 0.6f}
         },
         {
-            {Rectangle{-5.8f, -2.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -6.2f}},
-            {Rectangle{-5.8f, -6.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -10.2f}},
-            {Rectangle{-5.8f, -10.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -13.5f}},
-            {Rectangle{-3.0f, -10.8f, 1.4f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.2f, -6.0f}},
-            {Rectangle{-3.0f, -6.8f, 1.4f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.2f, -2.0f}},
+            {Rectangle{-5.9f, -2.4f, 2.0f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.2f, -6.45f}},
+            {Rectangle{-5.9f, -6.4f, 2.0f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.2f, -10.45f}},
+            {Rectangle{-5.9f, -10.4f, 2.0f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.2f, -13.45f}},
+            {Rectangle{-3.2f, -10.8f, 1.6f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.1f, -6.45f}},
+            {Rectangle{-3.2f, -6.8f, 1.6f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.1f, -2.45f}},
             {Rectangle{3.8f, -2.4f, 1.6f, 1.0f}, "Key Office", 12, "", {0,0}, false, {0,0}, 0, "", 2, "got_keycard_lv2", "", "collected_keycard_l2", "No more keycards here."},
             {Rectangle{3.6f, -10.4f, 1.6f, 1.0f}, "Locked Cache", 13, "", {0,0}, false, {0,0}, 2, "", 0, "got_mechanical_key", "Requires Keycard L2", "opened_locked_cache", "Cache is already stripped."},
-            {Rectangle{5.8f, -13.5f, 1.1f, 1.1f}, "Return to Command", -1, "control_room", {-4.2f, 0.0f}},
+            {Rectangle{5.5f, -13.5f, 1.4f, 1.1f}, "Return to Command", -1, "control_room", {-4.2f, 0.0f}},
         },
         {
             {{-7, -2.0f, 0.0f}, {14, 0.8f, 1.3f}, Color{84, 96, 106, 255}, Color{56, 64, 72, 255}, Color{66, 76, 86, 255}},
@@ -446,7 +452,9 @@ int main() {
         {
             {"steel", Rectangle{-6.8f,-13.9f,13.6f,0.5f}, 1.2f, Color{255,255,255,90}},
             {"grate", Rectangle{-5.5f,-10.0f,3.0f,0.35f}, 0.25f, Color{255,255,255,95}},
-            {"rust", Rectangle{3.7f,-10.6f,1.7f,1.2f}, 0.35f, Color{255,255,255,95}}
+            {"rust", Rectangle{3.7f,-10.6f,1.7f,1.2f}, 0.35f, Color{255,255,255,95}},
+            {"steel", Rectangle{-6.8f,-9.9f,13.6f,0.5f}, 1.2f, Color{255,255,255,82}},
+            {"grate", Rectangle{-5.6f,-6.0f,3.4f,0.35f}, 0.25f, Color{255,255,255,92}}
         },
         "VERTICAL BUNKER // layered decks, stairs, locked sectors", "visited_bunker"
     };
@@ -786,10 +794,9 @@ int main() {
         if (!scene.verticalCutaway) {
             for (const auto& g : scene.solids) if (DepthOf(g) > playerDepth) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         }
-        if (scene.verticalCutaway) {
-            for (const auto& w : scene.wallsAlways) DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
-        } else {
-            for (const auto& w : scene.wallsAlways) DrawIsoPrismTopEdges(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan, Color{172, 188, 201, 190});
+        for (const auto& w : scene.wallsAlways) {
+            DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+            if (!scene.verticalCutaway) DrawIsoPrismTopEdges(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan, Color{182, 198, 212, 195});
         }
         for (const auto& d : scene.decals) DrawDecal(scene, d, mats, baseOrigin, cameraZoom, cameraAngle, cameraPan, storyClock);
 
