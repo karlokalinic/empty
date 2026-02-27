@@ -179,18 +179,30 @@ static void DrawSubmarineHullCutawayFrame(const Scene& s, Vector2 origin, float 
     Vector2 b = ToScreen(s, Vector2{7.35f, -6.15f}, z, origin, scale, angle, pan);
     Vector2 c = ToScreen(s, Vector2{7.35f, 6.15f}, z, origin, scale, angle, pan);
     Vector2 d = ToScreen(s, Vector2{-7.35f, 6.15f}, z, origin, scale, angle, pan);
-    DrawLineEx(a, b, 2.5f, Color{142, 164, 182, 160});
-    DrawLineEx(b, c, 2.5f, Color{142, 164, 182, 130});
-    DrawLineEx(c, d, 2.5f, Color{142, 164, 182, 160});
-    DrawLineEx(d, a, 2.5f, Color{142, 164, 182, 130});
+    DrawLineEx(a, b, 3.0f, Color{152, 174, 194, 175});
+    DrawLineEx(b, c, 3.0f, Color{152, 174, 194, 145});
+    DrawLineEx(c, d, 3.0f, Color{152, 174, 194, 175});
+    DrawLineEx(d, a, 3.0f, Color{152, 174, 194, 145});
 
-    for (int i = 0; i < 6; ++i) {
-        float t = static_cast<float>(i) / 5.0f;
-        float x = -6.7f + t * 12.9f;
+    for (int i = 0; i < 9; ++i) {
+        float t = static_cast<float>(i) / 8.0f;
+        float x = -6.8f + t * 13.3f;
         Vector2 r0 = ToScreen(s, Vector2{x, -6.0f}, z, origin, scale, angle, pan);
         Vector2 r1 = ToScreen(s, Vector2{x, 6.0f}, z, origin, scale, angle, pan);
-        DrawLineEx(r0, r1, 1.0f, Color{102, 124, 142, 62});
+        DrawLineEx(r0, r1, 1.1f, Color{110, 132, 150, 56});
     }
+}
+
+static void DrawCinematicPostFX(int w, int h, int frameCounter) {
+    for (int i = 0; i < 8; ++i) {
+        int pad = i * 22;
+        unsigned char a = static_cast<unsigned char>(14 - i);
+        if (a > 0) DrawRectangle(pad, pad, w - pad * 2, h - pad * 2, Color{0, 0, 0, a});
+    }
+    DrawRectangle(0, 0, w, 72, Color{0, 0, 0, 112});
+    DrawRectangle(0, h - 64, w, 64, Color{0, 0, 0, 112});
+    unsigned char pulse = static_cast<unsigned char>(18 + 9 * (1.0f + std::sin(frameCounter * 0.033f)));
+    DrawRectangle(0, 0, w, h, Color{14, 28, 42, pulse});
 }
 
 static bool InRect(Vector2 p, const Rectangle& r) {
@@ -743,6 +755,8 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
         DrawRectangle(0, 0, screenWidth, screenHeight, scene.background);
+        DrawRectangle(0, 0, screenWidth, screenHeight / 2, Color{28, 40, 56, 24});
+        DrawRectangle(0, screenHeight / 2, screenWidth, screenHeight / 2, Color{5, 8, 14, 38});
 
         if (!scene.verticalCutaway) {
             DrawSubmarineHullCutawayFrame(scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
@@ -764,9 +778,10 @@ int main() {
 
         Vector2 p = ToScreen(scene, playerWorld, 0.25f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         float bob = std::sin(frameCounter * 0.15f) * 1.6f * std::min(1.0f, Vector2Length(playerVel));
-        DrawCircleV(Vector2{p.x + 9, p.y + 8}, 12.0f, Color{8, 8, 12, 120});
-        DrawCircleV(Vector2{p.x, p.y + bob}, 12.5f, Color{235, 230, 220, 255});
-        DrawCircleV(Vector2{p.x, p.y - 2 + bob}, 8.3f, Color{20, 20, 25, 255});
+        DrawCircleV(Vector2{p.x + 10, p.y + 9}, 14.0f, Color{6, 8, 12, 145});
+        DrawCircleV(Vector2{p.x + 4, p.y + 5 + bob}, 11.5f, Color{172, 183, 191, 120});
+        DrawCircleV(Vector2{p.x, p.y + bob}, 12.5f, Color{228, 232, 234, 255});
+        DrawCircleV(Vector2{p.x, p.y - 2 + bob}, 8.3f, Color{18, 22, 29, 255});
 
         if (!scene.verticalCutaway) {
             for (const auto& g : scene.solids) if (DepthOf(g) > playerDepth) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
@@ -829,6 +844,7 @@ int main() {
         DrawRectangle(0, screenHeight - 24, screenWidth, 24, Color{0, 0, 0, 235});
         DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom", screenWidth - 560, screenHeight - 18, 12, Color{180, 186, 194, 230});
 
+        DrawCinematicPostFX(screenWidth, screenHeight, frameCounter);
         if (isFading) DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));
         EndDrawing();
     }
