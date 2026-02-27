@@ -257,9 +257,9 @@ int main() {
         {2, {"Ops AI", "Silent sweep complete. Heat signatures uncertain.", {{"Log it.", -1, {}, {}, 0, "prep_security"}, {"Open crew channel.", 5, {}, {}, 0, ""}}}},
         {3, {"Ops AI", "Active ping answered. Something answered back.", {{"Seal doors.", 6, {}, {}, 0, "lockdown"}, {"Keep pinging.", -1, {}, {}, 0, ""}}}},
         {4, {"Inner Voice", "The chair is warm, but nobody sits here anymore.", {{"Sit.", -1, {}, {}, 0, "memory_echo"}, {"Step away.", -1, {}, {}, 0, ""}}}},
-        {5, {"Deck Chief", "Metal scratching through vents.", {{"Arm everyone.", -1, {}, {}, 0, "crew_armed"}, {"Stay calm.", -1, {}, {}, 0, "crew_calm"}}}},
-        {6, {"System", "LOCKDOWN INITIATED // Some doors failed to close.", {{"Route power to seals.", -1, {}, {}, 0, "reroute_power"}}}},
-        {7, {"Mechanic", "Hatch wheel is stuck.", {{"Force it.", 8, {}, {}, 0, "force_hatch"}, {"Leave it.", -1, {}, {}, 0, ""}}}},
+        {5, {"Deck Chief", "We hear metal scratching through vents. People are scared.", {{"Arm everyone.", -1, {}, {}, 0, "crew_armed"}, {"Stay calm.", -1, {}, {}, 0, "crew_calm"}}}},
+        {6, {"System", "LOCKDOWN INITIATED // Some doors failed to close. Keep everyone calm.", {{"Route power to seals.", -1, {}, {}, 0, "reroute_power"}}}},
+        {7, {"Mechanic", "Hatch wheel is stuck. Maybe pressure, maybe rust. Let's be careful.", {{"Force it.", 8, {}, {}, 0, "force_hatch"}, {"Leave it.", -1, {}, {}, 0, ""}}}},
         {8, {"Narrator", "Warm air exhales like a living thing.", {{"Flashlight inside.", 9, {}, {}, 0, "light_check"}, {"Close it.", -1, {}, {}, 0, ""}}}},
         {9, {"Narrator", "Wet footprints stop mid-corridor.", {{"Mark for investigation.", -1, {}, {}, 0, "trace_marked"}}}},
         {10, {"Journal", "Blueprint margins mention a hidden vertical bunker beneath command.", {{"Pocket blueprint.", -1, {}, {}, 0, "got_old_blueprint"}, {"Leave it.", -1, {}, {}, 0, ""}}}},
@@ -307,12 +307,14 @@ int main() {
     Vector2 prevMouse = GetMousePosition();
     int frameCounter = 0;
     float storyClock = 0.0f;
+    int worldBit = 0;
 
     bool running = true;
     while (running && !WindowShouldClose()) {
         frameCounter++;
         float dt = GetFrameTime();
         storyClock += dt;
+        worldBit = static_cast<int>(flags.size() % 2);
         if (clickCooldown > 0.0f) clickCooldown = std::max(0.0f, clickCooldown - dt);
 
         Vector2 mouseNow = GetMousePosition();
@@ -332,6 +334,7 @@ int main() {
             DrawRectangle(0, 0, screenWidth, 170, Color{130, 20, 28, 20});
             DrawText("SUBMARINE NOIR", screenWidth / 2 - 180, 132, 48, Color{236, 224, 210, 255});
             DrawText("Vertical stacks, keys, timed choices, branching endings", screenWidth / 2 - 280, 188, 22, Color{177, 191, 204, 240});
+            DrawText("World logic: every major state resolves to 0/1 (binary bit)", screenWidth / 2 - 285, 218, 16, Color{155, 175, 192, 230});
 
             bool hoverStart = CheckCollisionPointRec(mouseNow, startBtn);
             bool hoverQuit = CheckCollisionPointRec(mouseNow, quitBtn);
@@ -553,7 +556,7 @@ int main() {
         DrawRectangle(10, 7, 820, 30, Color{18, 24, 30, 200});
         DrawRectangleLinesEx(Rectangle{10, 7, 820, 30}, 1.5f, Color{120, 140, 155, 170});
         DrawText(scene.flavorText.c_str(), 18, 14, 14, Color{210, 220, 224, 240});
-        DrawText(TextFormat("KC:%i  Time:%02i", keycardLevel, static_cast<int>(storyClock)), screenWidth - 190, 14, 14, Color{180, 230, 190, 255});
+        DrawText(TextFormat("KC:%i  Time:%02i  WORLD_BIT:%i", keycardLevel, static_cast<int>(storyClock), worldBit), screenWidth - 330, 14, 14, Color{180, 230, 190, 255});
 
         DrawRectangle(0, screenHeight - 160, screenWidth, 160, Color{8, 10, 14, 195});
         DrawRectangle(14, screenHeight - 154, 470, 148, Color{12, 18, 24, 180});

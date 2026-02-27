@@ -17,13 +17,14 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 
 ---
 
-## Što je implementirano (NOVI UPDATE - DALJE++++ )
+## Što je implementirano (NOVI UPDATE - DALJE+++++ )
 
 ### Core gameplay
 - Dodan **Vertical cutaway level** (side-scroller feeling) s više katova povezanih stepenicama.
 - Dodani **missing keys/keycard privileges** (Level 1 i Level 2) i zaključana vrata/cache objekti.
 - Dodani **timed choices** i lock/unlock choice logika ovisno o flagovima, redoslijedu odlazaka i keycard levelu.
 - Dodani **branching endings** (više završetaka ovisno o odabirima i tajmingu).
+- Dodan **WORLD_BIT (0/1)** indikator koji dokazuje binary state model svijeta (paritet važnih stanja/flagova).
 - **Glatkije kretanje**: acceleration + damping + bob animacija lika.
 - Dodan mali **click cooldown** da input ne spamma i UI interakcija izgleda profesionalnije.
 - Dodan **Main Menu** (Start/Quit) za bolji flow kao prava igra.
@@ -185,6 +186,18 @@ cmake --build build -j
    - Dodati per-scene audio mix i trigger-based stingers za timed odluke.
 
 ---
+
+## Claude AI za razgovor s likovima (preporuka)
+Za NPC razgovore nakon ovog prototipa, najpraktičniji izbor je:
+- **Claude 3.7 Sonnet**: najbolji balans kvalitete dijaloga, konteksta i stabilnosti tona likova.
+- **Claude 3.5 Haiku**: jeftinija/briša opcija za sporedne NPC-e i ambient replike.
+
+Predložena integracija (sljedeći patch):
+1. NPC profil + world state + inventory + flags šalješ kao JSON kontekst.
+2. Model vraća samo jednu repliku + opcionalno `setFlag` akcije.
+3. Dodati safety pravilo: NPC ne otkriva "tajne" bez trust/permission flagova.
+
+Napomena: u ovom patchu nije dodan online API poziv (da build ostane offline-friendly), ali struktura state/flags je pripremljena za to.
 
 ## Napomena o AI slikama i 2.5D
 Da, moguće je besplatno:
