@@ -5,6 +5,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+python .\scripts\generate_textures.py
+
 if ($Clean -and (Test-Path $BuildDir)) {
     Write-Host "[submarine_noir] Removing existing build directory: $BuildDir"
     Remove-Item -Recurse -Force $BuildDir
