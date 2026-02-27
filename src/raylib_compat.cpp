@@ -82,6 +82,10 @@ void DrawText(const char*, int, int, int, Color) {}
 void DrawRectangleRec(Rectangle, Color) {}
 void DrawRectangleLinesEx(Rectangle, float, Color) {}
 
+Texture2D LoadTexture(const char*) { return Texture2D{0, 256, 256, 1, 0}; }
+void UnloadTexture(Texture2D) {}
+void DrawTexturePro(Texture2D, Rectangle, Rectangle, Vector2, float, Color) {}
+
 Color Fade(Color color, float alpha) {
     alpha = std::clamp(alpha, 0.0f, 1.0f);
     color.a = static_cast<unsigned char>(alpha * static_cast<float>(color.a));
@@ -97,4 +101,3 @@ const char* TextFormat(const char* text, ...) {
     return buffer;
 }
 
-#endif

@@ -1,0 +1,2036 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..c6997555c207bd4dfb114b4a63219f53f5b7cc16
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,4 @@
++build/
++build-*/
++.vscode/
++.DS_Store
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..7c7b692f8f4e4064021d30b687ed69a4d7fe385d
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,59 @@
++cmake_minimum_required(VERSION 3.16)
++project(SubmarineNoirPrototype LANGUAGES CXX)
++
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++set(CMAKE_CXX_EXTENSIONS OFF)
++
++# Default build type for single-config generators (e.g. Ninja, Makefiles)
++if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
++  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
++  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
++  message(STATUS "CMAKE_BUILD_TYPE not set, defaulting to RelWithDebInfo")
++endif()
++
++option(USE_FETCHCONTENT_RAYLIB "Download raylib automatically if not found" ON)
++# Option to force using local compatibility backend instead of linking raylib
++option(FORCE_RAYLIB_COMPAT "Force using the local raylib compatibility backend" OFF)
++
++find_package(raylib QUIET)
++
++if(NOT TARGET raylib AND NOT TARGET raylib::raylib AND USE_FETCHCONTENT_RAYLIB)
++  include(FetchContent)
++  FetchContent_Declare(
++    raylib
++    GIT_REPOSITORY https://github.com/raysan5/raylib.git
++    GIT_TAG 5.0
++  )
++  FetchContent_MakeAvailable(raylib)
++endif()
++
++add_executable(submarine_noir
++  src/main.cpp
++)
++
++target_include_directories(submarine_noir PRIVATE src)
++
++target_compile_options(submarine_noir PRIVATE
++  $<$<CXX_COMPILER_ID:MSVC>:/W4>
++  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>
++)
++
++if(FORCE_RAYLIB_COMPAT)
++  message(STATUS "Forcing raylib compatibility backend (SUBNOIR_HAS_RAYLIB=0)")
++  target_compile_definitions(submarine_noir PRIVATE SUBNOIR_HAS_RAYLIB=0)
++  target_sources(submarine_noir PRIVATE src/raylib_compat.cpp)
++else()
++  if(TARGET raylib)
++    target_link_libraries(submarine_noir PRIVATE raylib)
++  elseif(TARGET raylib::raylib)
++    target_link_libraries(submarine_noir PRIVATE raylib::raylib)
++  else()
++    message(WARNING "raylib target not found. Building with local headless compatibility backend.")
++    target_sources(submarine_noir PRIVATE src/raylib_compat.cpp)
++  endif()
++endif()
++
++if ((TARGET raylib OR TARGET raylib::raylib) AND UNIX AND NOT APPLE AND NOT FORCE_RAYLIB_COMPAT)
++  target_link_libraries(submarine_noir PRIVATE m pthread dl rt X11)
++endif()
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..af9389293eebf0fecb4625e071ef7bbf607cb252
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,265 @@
++# Submarine Noir Prototype (C++ + raylib)
++
++Minimalni playable prototip koji spaja:
++- **isometric diorama / pseudo-3D volumetric** atmosferu,
++- **point-and-click kretanje**,
++- **dialog + choices + log**,
++- **scene transition (fade)**,
++- sve u jednoj C++ aplikaciji.
++
++## Artstyle cilj (tehnički naziv)
++Traženi mix se može opisati kao:
++- **Painterly Isometric Diorama**
++- **Stylized Realism + Analog Horror Grading**
++- **2.5D Narrative Isometric Adventure**
++
++Praktično: statični ili polustatični painterly background + interaktivni 2D gameplay layer + postprocess (grain, vignette, chromatic aber., LUT) za analog horror osjećaj.
++
++---
++
++## Što je implementirano (NOVI UPDATE - DALJE+++++ )
++
++### Core gameplay
++- Dodan **Vertical cutaway level** (side-scroller feeling) s više katova povezanih stepenicama.
++- Dodani **missing keys/keycard privileges** (Level 1 i Level 2) i zaključana vrata/cache objekti.
++- Dodani **timed choices** i lock/unlock choice logika ovisno o flagovima, redoslijedu odlazaka i keycard levelu.
++- Dodani **branching endings** (više završetaka ovisno o odabirima i tajmingu).
++- Dodan **WORLD_BIT (0/1)** indikator koji dokazuje binary state model svijeta (paritet važnih stanja/flagova).
++- **Glatkije kretanje**: acceleration + damping + bob animacija lika.
++- Dodan mali **click cooldown** da input ne spamma i UI interakcija izgleda profesionalnije.
++- Dodan **Main Menu** (Start/Quit) za bolji flow kao prava igra.
++- Dodan cinematic letterbox i glitch/flicker lighting pulse.
++- 2 scene:
++  - `control_room`
++  - `engine_corridor`
++- Klik na podlogu -> lik ide do ciljne točke.
++- Kretanje je sada u **isometric world koordinatama** (screen <-> iso konverzija).
++- Walkable zona + **blocker kolizije** (lik ne prolazi kroz zidove/velike objekte).
++- Spawn i target validacija su popravljeni da lik ne zapne na startu.
++- Hotspot interakcije:
++  - dijalog hotspotovi,
++  - scene exit hotspotovi.
++
++### Vizualni isometric/3D upgrade
++- Dodani **actual texture assets** u `assets/textures` (steel/rust/grate/water) i runtime material decals preko scene geometrije.
++- **Submarine atmosfera**: industrijske cijevi/strojni blokovi + viewport “water movement” iza stakla.
++- Dodan **faux 3D isometric renderer** (projekcija + volumetrijski prism objekti).
++- Scene imaju ručno definiranu geometriju (`IsoPrism`) s top/left/right shadingom i punim zidovima/volumenima (jasniji level design).
++- Prostorije su složene kao **L-shape** (2 vidljiva zida), a vanjski zidovi se uvijek crtaju.
++- Dodan depth layering: objekti se crtaju ispred/iza lika po world dubini (2.5D osjećaj).
++- Dodan **camera control**: RMB drag = pan, MMB drag = rotacija scene (limitirano, nikad van zidova).
++- Dodan **zoom in/out** na mouse wheel.
++- Dodan floor grid za jači isometric čitljiv output.
++- Dodani analog-horror overlay efekti: scanlines + pulsirajući crveni cast.
++
++### Narrative sustav
++- Data-driven dijalog čvorovi (`DialogueNode`, `Choice`).
++- Choice može:
++  - otvoriti drugi dijalog node,
++  - završiti razgovor,
++  - postaviti gameplay flag.
++- Dialog history/log (zadnjih više poruka).
++
++### States i tranzicije
++- `FreeRoam`, `Dialogue`, `Transition` state machine.
++- Fade in/out prijelaz među scenama.
++
++### Build setup
++- CMake projekt.
++- Primarni target: **raylib** (`find_package(raylib)` ili `FetchContent`).
++- Ako raylib nije dostupan: koristi se **lokalni headless compatibility backend** (`src/raylib_compat.cpp`) tako da build i CI mogu proći i bez mreže/dependencyja.
++
++---
++
++## Assets
++- `assets/textures/steel_plate.bmp`
++- `assets/textures/rust_panel.bmp`
++- `assets/textures/grate_floor.bmp`
++- `assets/textures/water_view.bmp`
++- `assets/materials_manifest.txt`
++
++Ako koristiš Blender: exportaj texture atlase u ovaj folder i zamijeni datoteke istim imenima za instant upgrade rendera.
++
++## Pokretanje
++
++### Standard (raylib)
++```bash
++cmake -S . -B build
++cmake --build build -j
++./build/submarine_noir
++```
++
++### Windows PowerShell (Ninja / MinGW)
++```powershell
++cmake -S . -B build
++cmake --build build -j
++.\build\submarine_noir.exe
++```
++
++Napomena: na Windowsu je izlazni fajl `submarine_noir.exe`, ne `./build/submarine_noir`.
++
++### Quick helper skripte
++```powershell
++# Windows PowerShell (auto-fix stale cache, build, run)
++.\scripts\build.ps1
++
++# Ako želiš prisilno clean build
++.\scripts\build.ps1 -Clean
++```
++
++```bash
++# Linux/macOS headless smoke build
++./scripts/build.sh
++```
++
++### Offline/CI fallback (bez raylib)
++Ako okruženje ne može instalirati/povući raylib, projekt se i dalje kompilira uz headless backend.
++Isti build koraci vrijede, ali runtime je no-op render (korisno za provjeru da je kod i arhitektura ispravna).
++
++Možeš i ručno forsirati compat mod (čak i kad raylib postoji):
++```bash
++cmake -S . -B build -DFORCE_RAYLIB_COMPAT=ON
++cmake --build build -j
++```
++
++---
++
++## Kontrole
++- **LMB**: kretanje / interakcija / odabir dialogue choice
++- **RMB (drži i pomiči miš)**: pomicanje kamere (pan)
++- **MMB / pritisak wheel-a (drži i pomiči miš)**: rotacija scene (limitirana, samo isometric scene)
++- **Mouse Wheel**: zoom in/out
++- **ESC**: izlaz (u real raylib buildu)
++
++---
++
++## Kako dalje do “Disco-like” kvalitete (besplatno)
++
++1. **Asset pipeline**
++   - Blender blockout (isometric kamera)
++   - render pass (base, AO, depth)
++   - paintover u Krita/GIMP
++   - export: background / foreground / mask
++
++2. **2.5D dubina**
++   - depth map + parallax layeri
++   - occlusion foreground preko lika
++
++3. **Horror postprocess**
++   - LUT color grading (hladno plava + topla praktična svjetla)
++   - film grain
++   - vignette
++   - blagi jitter/chromatic aber.
++
++4. **Sustavi za “top game”**
++   - save/load
++   - inventory + checks
++   - quest graph
++   - reputation/sanity meters
++   - audio zones + dynamic ambience
++
++---
++
++## Plan za sljedeći patch (na tvoj "DALJE")
++
++0. **Audio (sljedeći patch)**
++   - Dodati real ambient loopove: submarine machine hum, pressure creaks, distant sonar pings.
++   - Zone-based muffling i kratki glitch audio stingeri kod flickera.
++
++1. **Vizualni upgrade (sljedeći korak)**
++   - Učitavanje ručno nacrtanih painterly background/foreground layera po sceni (stil reference slike).
++   - Soft shadow pass i AO fake overlay za realističniji “diorama” feeling.
++   - Uvesti depth mask occlusion da lik prolazi iza objekata.
++   - Dodati volumetrijsku maglu i cinematic light shafts.
++
++2. **Pathfinding upgrade**
++   - Zamijeniti "direct walk" sa waypoint/A* navigacijom preko walkmesh triangulacije.
++
++3. **Narrative tooling**
++   - Prebaciti dijalog iz hardcode C++ u JSON datoteke.
++   - Dodati uvjete (`requiresFlag`) i skill check roll.
++
++4. **UX i produkcija**
++   - Save/load u lokalni JSON.
++   - Scene registry i data folder struktura (`assets/scenes/*`).
++
++5. **Submarine content slice**
++   - 5 prostorija: control, crew, medbay, engine, ballast.
++   - 1 kratki horror event chain s 3 ishoda.
++
++6. **Packaging/dev ergonomics**
++   - CMake Presets za Windows/Linux profile.
++   - release artifact + portable content folder layout.
++
++7. **Audio + assets integration**
++   - Učitati stvarne teksture/sprite sheetove i ambient audio loopove (machine hum, pressure creaks, sonar).
++   - Dodati per-scene audio mix i trigger-based stingers za timed odluke.
++
++---
++
++## Claude AI za razgovor s likovima (preporuka)
++Za NPC razgovore nakon ovog prototipa, najpraktičniji izbor je:
++- **Claude 3.7 Sonnet**: najbolji balans kvalitete dijaloga, konteksta i stabilnosti tona likova.
++- **Claude 3.5 Haiku**: jeftinija/briša opcija za sporedne NPC-e i ambient replike.
++
++Predložena integracija (sljedeći patch):
++1. NPC profil + world state + inventory + flags šalješ kao JSON kontekst.
++2. Model vraća samo jednu repliku + opcionalno `setFlag` akcije.
++3. Dodati safety pravilo: NPC ne otkriva "tajne" bez trust/permission flagova.
++
++Napomena: u ovom patchu nije dodan online API poziv (da build ostane offline-friendly), ali struktura state/flags je pripremljena za to.
++
++## Napomena o AI slikama i 2.5D
++Da, moguće je besplatno:
++- generiranje slika lokalno (npr. Stable Diffusion toolchain),
++- depth map ekstrakcija,
++- slojevi + parallax + occlusion u raylibu.
++
++Za stabilnu kvalitetu je i dalje najbolje:
++- **Blender blockout + ručni paintover + AI kao pomoćni alat**, ne jedini izvor.
++
++---
++
++## Windows build output explained
++Ako vidiš ovo u PowerShellu:
++- `CMake Deprecation Warning at build/_deps/raylib-src/...` -> to je warning iz **upstream raylib CMake-a**, nije greška u ovom projektu.
++- `ninja: no work to do.` -> build je već aktualan, pa Ninja nema što ponovno kompilirati.
++
++Za prisilni rebuild:
++```powershell
++cmake --build build --clean-first -j
++.\build\submarine_noir.exe
++```
++
++Ako želiš uvijek svježu konfiguraciju:
++```powershell
++cmake --fresh -S . -B build
++cmake --build build -j
++.\build\submarine_noir.exe
++```
++
++## Troubleshooting (Windows CMake cache mismatch)
++Ako si projekt premjestio iz jednog foldera u drugi (npr. `Downloads` -> `Documents`), stari `build/CMakeCache.txt` će sadržavati krivu putanju i CMake će javiti grešku "source does not match the source used to generate cache".
++
++Rješenja:
++
++```powershell
++# Opcija A: obriši stari build folder pa ponovno konfiguriraj
++Remove-Item -Recurse -Force .\build
++cmake -S . -B build
++cmake --build build -j
++.\build\submarine_noir.exe
++```
++
++```powershell
++# Opcija B: koristi helper skriptu (automatski detektira stale cache)
++.\scripts\build.ps1
++```
++
++```powershell
++# Opcija C: CMake fresh configure
++cmake --fresh -S . -B build
++cmake --build build -j
++.\build\submarine_noir.exe
++```
++
+diff --git a/assets/materials_manifest.txt b/assets/materials_manifest.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce49ffdb09f6b4bad1c33fbed14fe982ef71b38b
+--- /dev/null
++++ b/assets/materials_manifest.txt
+@@ -0,0 +1,4 @@
++steel_plate.bmp: hull walls, lockers, beams
++rust_panel.bmp: old machinery and pipes
++grate_floor.bmp: industrial floor overlays
++water_view.bmp: viewport/water emissive layer
+\ No newline at end of file
+diff --git a/assets/textures/grate_floor.bmp b/assets/textures/grate_floor.bmp
+new file mode 100644
+index 0000000000000000000000000000000000000000..569eed207be0e1905ac8ee77ccd9865711f25670
+--- /dev/null
++++ b/assets/textures/grate_floor.bmp
+GIT binary patch
+literal 196662
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/assets/textures/rust_panel.bmp b/assets/textures/rust_panel.bmp
+new file mode 100644
+index 0000000000000000000000000000000000000000..4ca24d99cfd893134704d14c31348cafad5d0893
+--- /dev/null
++++ b/assets/textures/rust_panel.bmp
+GIT binary patch
+literal 196662
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/assets/textures/steel_plate.bmp b/assets/textures/steel_plate.bmp
+new file mode 100644
+index 0000000000000000000000000000000000000000..6e6057119caa995d1e6445213b43e7691b3388a3
+--- /dev/null
++++ b/assets/textures/steel_plate.bmp
+GIT binary patch
+literal 196662
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/assets/textures/water_view.bmp b/assets/textures/water_view.bmp
+new file mode 100644
+index 0000000000000000000000000000000000000000..7d033e5f359b30be80ae220bbbf953805e3b7b95
+--- /dev/null
++++ b/assets/textures/water_view.bmp
+GIT binary patch
+literal 196662
+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
+J&x7^<{{Vf8q%i;h
+
+literal 0
+HcmV?d00001
+
+diff --git a/scripts/build.ps1 b/scripts/build.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..78c3598d93dfe60cd5c80a58fe4c78c2282338d4
+--- /dev/null
++++ b/scripts/build.ps1
+@@ -0,0 +1,32 @@
++param(
++    [string]$BuildDir = "build",
++    [switch]$Clean
++)
++
++$ErrorActionPreference = "Stop"
++
++if ($Clean -and (Test-Path $BuildDir)) {
++    Write-Host "[submarine_noir] Removing existing build directory: $BuildDir"
++    Remove-Item -Recurse -Force $BuildDir
++}
++
++if ((Test-Path "$BuildDir/CMakeCache.txt") -and -not $Clean) {
++    $cache = Get-Content "$BuildDir/CMakeCache.txt" -Raw
++    $cwd = (Get-Location).Path.Replace('\\', '/')
++    if (($cache -match "CMAKE_HOME_DIRECTORY:INTERNAL=(.+)") -and ($Matches[1] -ne $cwd)) {
++        Write-Host "[submarine_noir] Detected stale CMake cache from different source path. Recreating build dir..."
++        Remove-Item -Recurse -Force $BuildDir
++    }
++}
++
++cmake -S . -B $BuildDir
++cmake --build $BuildDir -j
++
++$exePath = Join-Path $BuildDir "submarine_noir.exe"
++if (Test-Path $exePath) {
++    Write-Host "[submarine_noir] Running $exePath"
++    & $exePath
++} else {
++    Write-Host "[submarine_noir] Executable not found at $exePath"
++    exit 1
++}
+diff --git a/scripts/build.sh b/scripts/build.sh
+new file mode 100755
+index 0000000000000000000000000000000000000000..477784a633b3934158339dd3330c48611220ceab
+--- /dev/null
++++ b/scripts/build.sh
+@@ -0,0 +1,8 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++BUILD_DIR="${1:-build}"
++
++cmake -S . -B "$BUILD_DIR" -DUSE_FETCHCONTENT_RAYLIB=OFF
++cmake --build "$BUILD_DIR" -j
++"./$BUILD_DIR/submarine_noir"
+diff --git a/src/main.cpp b/src/main.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..eff9a960c4c02f19c53f266c5e7c39a8bd005a30
+--- /dev/null
++++ b/src/main.cpp
+@@ -0,0 +1,655 @@
++#include "raylib_compat.h"
++
++#include <algorithm>
++#include <cmath>
++#include <string>
++#include <unordered_map>
++#include <vector>
++
++struct Choice {
++    std::string text;
++    int nextNode;
++    std::vector<std::string> requiresFlags;
++    std::vector<std::string> blockedByFlags;
++    int requiredKeycardLevel = 0;
++    std::string setFlag;
++};
++
++struct DialogueNode {
++    std::string speaker;
++    std::string line;
++    std::vector<Choice> choices;
++    float timeLimitSec = 0.0f;
++    int timeoutNextNode = -1;
++    std::string timeoutSetFlag;
++};
++
++struct Hotspot {
++    Rectangle worldRect;
++    std::string label;
++    int dialogueNode = -1;
++    std::string transitionTo;
++    Vector2 spawnWorld{0, 0};
++    bool movePlayer = false;
++    Vector2 moveTarget{0, 0};
++    int requiredKeycardLevel = 0;
++    std::string requiredFlag;
++    int grantKeycardLevel = 0;
++    std::string grantFlag;
++    std::string deniedText;
++};
++
++struct IsoPrism { Vector3 origin; Vector3 size; Color top; Color left; Color right; };
++
++struct PropDecal {
++    std::string material;
++    Rectangle worldRect;
++    float z = 0.25f;
++    Color tint{255,255,255,255};
++};
++
++struct MaterialBank {
++    Texture2D steel{};
++    Texture2D rust{};
++    Texture2D grate{};
++    Texture2D water{};
++};
++
++struct Scene {
++    std::string id;
++    bool verticalCutaway = false;
++    Color background;
++    Rectangle walkArea;
++    std::vector<Rectangle> blockers;
++    std::vector<Hotspot> hotspots;
++    std::vector<IsoPrism> solids;
++    std::vector<IsoPrism> wallsAlways;
++    std::vector<PropDecal> decals;
++    std::string flavorText;
++    std::string onEnterFlag;
++};
++
++enum class AppMode { MainMenu, InGame, Ending };
++enum class GameState { FreeRoam, Dialogue, Transition };
++
++static bool HasFlag(const std::vector<std::string>& flags, const std::string& f) {
++    return !f.empty() && std::find(flags.begin(), flags.end(), f) != flags.end();
++}
++
++static void SetFlag(std::vector<std::string>& flags, const std::string& f) {
++    if (f.empty() || HasFlag(flags, f)) return;
++    flags.push_back(f);
++}
++
++static Vector2 Rotate2D(Vector2 p, float a) {
++    float c = std::cos(a), s = std::sin(a);
++    return Vector2{p.x * c - p.y * s, p.x * s + p.y * c};
++}
++
++static Vector2 WorldToScreenIso(Vector2 world, float z, Vector2 origin, float scale, float angle, Vector2 pan) {
++    Vector2 r = Rotate2D(world, angle);
++    return Vector2{origin.x + pan.x + (r.x - r.y) * scale, origin.y + pan.y + (r.x + r.y) * scale * 0.5f - z * scale};
++}
++
++static Vector2 ScreenToWorldIso(Vector2 screen, Vector2 origin, float scale, float angle, Vector2 pan) {
++    float u = (screen.x - origin.x - pan.x) / scale;
++    float v = (screen.y - origin.y - pan.y) / (scale * 0.5f);
++    Vector2 rotated{(u + v) * 0.5f, (v - u) * 0.5f};
++    return Rotate2D(rotated, -angle);
++}
++
++static Vector2 WorldToScreenCutaway(Vector2 world, float z, Vector2 origin, float scale, Vector2 pan) {
++    return Vector2{origin.x + pan.x + world.x * scale, origin.y + pan.y - world.y * scale - z * scale * 0.35f};
++}
++
++static Vector2 ScreenToWorldCutaway(Vector2 screen, Vector2 origin, float scale, Vector2 pan) {
++    return Vector2{(screen.x - origin.x - pan.x) / scale, -(screen.y - origin.y - pan.y) / scale};
++}
++
++static Vector2 ToScreen(const Scene& s, Vector2 world, float z, Vector2 origin, float scale, float angle, Vector2 pan) {
++    return s.verticalCutaway ? WorldToScreenCutaway(world, z, origin, scale, pan)
++                             : WorldToScreenIso(world, z, origin, scale, angle, pan);
++}
++
++static Vector2 ToWorld(const Scene& s, Vector2 screen, Vector2 origin, float scale, float angle, Vector2 pan) {
++    return s.verticalCutaway ? ScreenToWorldCutaway(screen, origin, scale, pan)
++                             : ScreenToWorldIso(screen, origin, scale, angle, pan);
++}
++
++static void DrawQuad(const Vector2& a, const Vector2& b, const Vector2& c, const Vector2& d, Color col) {
++    DrawTriangle(a, b, c, col);
++    DrawTriangle(a, c, d, col);
++}
++
++static void DrawIsoPrism(const IsoPrism& g, const Scene& s, Vector2 origin, float scale, float angle, Vector2 pan) {
++    if (s.verticalCutaway) {
++        Vector2 p0 = ToScreen(s, Vector2{g.origin.x, g.origin.y}, g.origin.z + g.size.z, origin, scale, angle, pan);
++        Vector2 p1 = ToScreen(s, Vector2{g.origin.x + g.size.x, g.origin.y + g.size.y}, g.origin.z, origin, scale, angle, pan);
++        Rectangle r{std::min(p0.x, p1.x), std::min(p0.y, p1.y), std::fabs(p1.x - p0.x), std::fabs(p1.y - p0.y)};
++        DrawRectangleRec(r, g.top);
++        DrawRectangleLinesEx(r, 1.0f, g.right);
++        return;
++    }
++
++    Vector3 o = g.origin, sz = g.size;
++    Vector2 p000 = ToScreen(s, Vector2{o.x, o.y}, o.z, origin, scale, angle, pan);
++    Vector2 p100 = ToScreen(s, Vector2{o.x + sz.x, o.y}, o.z, origin, scale, angle, pan);
++    Vector2 p010 = ToScreen(s, Vector2{o.x, o.y + sz.y}, o.z, origin, scale, angle, pan);
++    Vector2 p110 = ToScreen(s, Vector2{o.x + sz.x, o.y + sz.y}, o.z, origin, scale, angle, pan);
++    Vector2 p001 = ToScreen(s, Vector2{o.x, o.y}, o.z + sz.z, origin, scale, angle, pan);
++    Vector2 p101 = ToScreen(s, Vector2{o.x + sz.x, o.y}, o.z + sz.z, origin, scale, angle, pan);
++    Vector2 p011 = ToScreen(s, Vector2{o.x, o.y + sz.y}, o.z + sz.z, origin, scale, angle, pan);
++    Vector2 p111 = ToScreen(s, Vector2{o.x + sz.x, o.y + sz.y}, o.z + sz.z, origin, scale, angle, pan);
++
++    DrawQuad(p001, p101, p111, p011, g.top);
++    DrawQuad(p001, p011, p010, p000, g.left);
++    DrawQuad(p101, p111, p110, p100, g.right);
++}
++
++static bool InRect(Vector2 p, const Rectangle& r) {
++    return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
++}
++
++static bool IsBlocked(Vector2 p, const Scene& s) {
++    if (!InRect(p, s.walkArea)) return true;
++    for (const auto& b : s.blockers) if (InRect(p, b)) return true;
++    return false;
++}
++
++static Vector2 FindValidTarget(Vector2 desired, const Scene& scene, Vector2 fallback) {
++    if (!IsBlocked(desired, scene)) return desired;
++    for (float r = 0.2f; r <= 4.0f; r += 0.2f) {
++        for (int i = 0; i < 24; ++i) {
++            float a = 6.283185f * (static_cast<float>(i) / 24.0f);
++            Vector2 c{desired.x + std::cos(a) * r, desired.y + std::sin(a) * r};
++            if (!IsBlocked(c, scene)) return c;
++        }
++    }
++    return fallback;
++}
++
++static float DepthOf(const IsoPrism& g) { return g.origin.x + g.origin.y + (g.size.x + g.size.y) * 0.5f; }
++
++static Texture2D LoadMaterialTexture(const char* path) {
++    return LoadTexture(path);
++}
++
++static void DrawDecal(const Scene& scene, const PropDecal& d, const MaterialBank& mats, Vector2 origin, float scale, float angle, Vector2 pan) {
++    const Texture2D* tex = &mats.steel;
++    if (d.material == "rust") tex = &mats.rust;
++    else if (d.material == "grate") tex = &mats.grate;
++    else if (d.material == "water") tex = &mats.water;
++
++    Vector2 p0 = ToScreen(scene, Vector2{d.worldRect.x, d.worldRect.y}, d.z, origin, scale, angle, pan);
++    Vector2 p1 = ToScreen(scene, Vector2{d.worldRect.x + d.worldRect.width, d.worldRect.y + d.worldRect.height}, d.z, origin, scale, angle, pan);
++    Rectangle dst{std::min(p0.x,p1.x), std::min(p0.y,p1.y), std::fabs(p1.x-p0.x)+1.0f, std::fabs(p1.y-p0.y)+1.0f};
++    Rectangle src{0,0, static_cast<float>(tex->width), static_cast<float>(tex->height)};
++    DrawTexturePro(*tex, src, dst, Vector2{0,0}, 0.0f, d.tint);
++}
++
++static bool ChoiceUnlocked(const Choice& c, const std::vector<std::string>& flags, int keycardLevel) {
++    if (keycardLevel < c.requiredKeycardLevel) return false;
++    for (const auto& f : c.requiresFlags) if (!HasFlag(flags, f)) return false;
++    for (const auto& f : c.blockedByFlags) if (HasFlag(flags, f)) return false;
++    return true;
++}
++
++int main() {
++    const int screenWidth = 1366;
++    const int screenHeight = 768;
++    const Vector2 baseOrigin{683, 220};
++
++    InitWindow(screenWidth, screenHeight, "Submarine Noir - Branching Prototype");
++    SetTargetFPS(60);
++
++    MaterialBank mats{};
++    mats.steel = LoadMaterialTexture("assets/textures/steel_plate.bmp");
++    mats.rust = LoadMaterialTexture("assets/textures/rust_panel.bmp");
++    mats.grate = LoadMaterialTexture("assets/textures/grate_floor.bmp");
++    mats.water = LoadMaterialTexture("assets/textures/water_view.bmp");
++
++    std::unordered_map<std::string, Scene> scenes;
++
++    scenes["control_room"] = Scene{
++        "control_room", false, Color{14, 20, 26, 255}, Rectangle{-7.2f, -6.0f, 14.4f, 12.0f},
++        {Rectangle{-1.2f, -1.7f, 2.4f, 3.4f}, Rectangle{3.0f, -3.0f, 1.7f, 1.9f}, Rectangle{-2.5f, 2.1f, 2.1f, 1.5f}},
++        {
++            {Rectangle{2.8f, -2.8f, 1.7f, 1.6f}, "Command Console", 1},
++            {Rectangle{-6.8f, -0.5f, 0.9f, 2.2f}, "Bulkhead Door", -1, "engine_corridor", {4.8f, 0.2f}},
++            {Rectangle{-2.4f, 2.1f, 1.8f, 1.3f}, "Captain's Chair", 4},
++            {Rectangle{4.8f, 2.8f, 1.0f, 1.0f}, "Security Locker", -1, "", {0, 0}, false, {0,0}, 0, "", 1, "got_keycard_lv1", "Locker is jammed."},
++            {Rectangle{5.6f, -4.4f, 1.0f, 1.0f}, "Command Hatch", 11, "", {0,0}, false, {0,0}, 2, "", 0, "", "Requires Keycard L2"},
++            {Rectangle{0.8f, 4.5f, 1.2f, 1.2f}, "Lift to Bunker Stack", -1, "vertical_bunker", {0.0f, 2.0f}},
++        },
++        {
++            {{-7.2f, -6, 0}, {14.4f, 12, 0.2f}, Color{66, 73, 80, 255}, Color{45, 50, 56, 255}, Color{38, 42, 47, 255}},
++            {{-1.2f, -1.7f, 0.2f}, {2.4f, 3.4f, 0.8f}, Color{222, 44, 51, 255}, Color{147, 24, 33, 255}, Color{181, 31, 41, 255}},
++            {{3.0f, -3.0f, 0.2f}, {1.7f, 1.9f, 1.8f}, Color{162, 140, 121, 255}, Color{106, 90, 77, 255}, Color{130, 110, 94, 255}},
++            {{-5.8f, -4.2f, 0.2f}, {0.45f, 8.0f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
++        },
++        {
++            {{-7.2f, -6.0f, 0.2f}, {14.4f, 0.85f, 3.2f}, Color{139, 143, 146, 255}, Color{95, 98, 102, 255}, Color{112, 115, 120, 255}},
++            {{-7.2f, -5.15f, 0.2f}, {0.85f, 11.15f, 3.2f}, Color{132, 137, 142, 255}, Color{84, 90, 98, 255}, Color{103, 110, 117, 255}},
++        },
++        {
++            {"steel", Rectangle{-7.0f,-5.8f,13.8f,0.45f}, 2.9f, Color{255,255,255,90}},
++            {"grate", Rectangle{-6.6f,-1.2f,5.2f,0.35f}, 0.22f, Color{255,255,255,95}},
++            {"rust", Rectangle{-5.9f,-4.1f,0.4f,8.0f}, 0.65f, Color{255,255,255,95}},
++            {"water", Rectangle{-6.4f,-5.75f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}}
++        },
++        "CONTROL ROOM // pressure, steel, failing trust", "visited_control"
++    };
++
++    scenes["engine_corridor"] = Scene{
++        "engine_corridor", false, Color{24, 13, 15, 255}, Rectangle{-7.8f, -5.3f, 15.6f, 10.8f},
++        {Rectangle{-1.4f, -0.6f, 2.0f, 3.2f}, Rectangle{-4.6f, -2.7f, 2.4f, 1.6f}, Rectangle{2.7f, -2.1f, 1.9f, 1.5f}},
++        {
++            {Rectangle{6.2f, -0.4f, 1.1f, 1.8f}, "Return to Control", -1, "control_room", {-5.4f, 0.2f}},
++            {Rectangle{-2.8f, -1.7f, 2.0f, 1.6f}, "Maintenance Hatch", 7},
++            {Rectangle{1.4f, 2.1f, 1.9f, 1.4f}, "Crew Journal", 10, "", {0, 0}, false, {0,0}, 0, "", 0, "got_old_blueprint", ""},
++        },
++        {
++            {{-7.8f, -5.3f, 0}, {15.6f, 10.8f, 0.2f}, Color{58, 32, 34, 255}, Color{39, 22, 24, 255}, Color{46, 26, 28, 255}},
++            {{-1.4f, -0.6f, 0.2f}, {2.0f, 3.2f, 0.8f}, Color{226, 40, 47, 255}, Color{151, 23, 29, 255}, Color{182, 29, 35, 255}},
++            {{-6.2f, -4.3f, 0.2f}, {0.45f, 8.1f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
++        },
++        {
++            {{-7.8f, -5.3f, 0.2f}, {15.6f, 0.85f, 3.0f}, Color{141, 95, 74, 255}, Color{92, 63, 49, 255}, Color{113, 77, 60, 255}},
++            {{-7.8f, -4.45f, 0.2f}, {0.85f, 9.95f, 3.0f}, Color{132, 86, 69, 255}, Color{84, 56, 45, 255}, Color{103, 68, 54, 255}},
++        },
++        {
++            {"rust", Rectangle{-6.5f,-4.3f,0.5f,8.1f}, 0.62f, Color{255,255,255,100}},
++            {"grate", Rectangle{-2.5f,-0.3f,4.6f,0.35f}, 0.22f, Color{255,255,255,96}},
++            {"water", Rectangle{-6.9f,-5.0f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}}
++        },
++        "ENGINE CORRIDOR // rust and red emergency strips", "visited_engine"
++    };
++
++    scenes["vertical_bunker"] = Scene{
++        "vertical_bunker", true, Color{10, 14, 20, 255}, Rectangle{-7.0f, -14.0f, 14.0f, 16.0f},
++        {
++            Rectangle{-7.0f, -1.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -5.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -9.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -13.8f, 14.0f, 0.6f},
++            Rectangle{-2.2f, -10.4f, 2.2f, 0.6f}, Rectangle{2.0f, -6.4f, 2.0f, 0.6f}
++        },
++        {
++            {Rectangle{-5.8f, -2.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -6.2f}},
++            {Rectangle{-5.8f, -6.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -10.2f}},
++            {Rectangle{-5.8f, -10.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -13.5f}},
++            {Rectangle{-3.0f, -10.8f, 1.4f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.2f, -6.0f}},
++            {Rectangle{-3.0f, -6.8f, 1.4f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.2f, -2.0f}},
++            {Rectangle{3.8f, -2.4f, 1.6f, 1.0f}, "Key Office", 12, "", {0,0}, false, {0,0}, 0, "", 2, "got_keycard_lv2", ""},
++            {Rectangle{3.6f, -10.4f, 1.6f, 1.0f}, "Locked Cache", 13, "", {0,0}, false, {0,0}, 2, "", 0, "got_mechanical_key", "Requires Keycard L2"},
++            {Rectangle{5.8f, -13.5f, 1.1f, 1.1f}, "Return to Command", -1, "control_room", {-4.2f, 0.0f}},
++        },
++        {
++            {{-7, -2.0f, 0.0f}, {14, 0.8f, 1.3f}, Color{84, 96, 106, 255}, Color{56, 64, 72, 255}, Color{66, 76, 86, 255}},
++            {{-7, -6.0f, 0.0f}, {14, 0.8f, 1.3f}, Color{84, 96, 106, 255}, Color{56, 64, 72, 255}, Color{66, 76, 86, 255}},
++            {{-7, -10.0f, 0.0f}, {14, 0.8f, 1.3f}, Color{84, 96, 106, 255}, Color{56, 64, 72, 255}, Color{66, 76, 86, 255}},
++            {{-7, -14.0f, 0.0f}, {14, 0.8f, 1.3f}, Color{84, 96, 106, 255}, Color{56, 64, 72, 255}, Color{66, 76, 86, 255}},
++            {{3.8f, -2.6f, 0.0f}, {1.7f, 1.2f, 2.2f}, Color{126, 142, 153, 255}, Color{81, 94, 104, 255}, Color{97, 113, 124, 255}},
++            {{3.6f, -10.6f, 0.0f}, {1.7f, 1.2f, 2.2f}, Color{145, 128, 103, 255}, Color{95, 83, 67, 255}, Color{114, 99, 80, 255}},
++        },
++        {
++            {{-7.0f, -14.0f, 0.0f}, {14.0f, 0.6f, 16.0f}, Color{100, 108, 116, 255}, Color{72, 78, 84, 255}, Color{83, 90, 96, 255}},
++            {{-7.0f, -14.0f, 0.0f}, {0.6f, 12.8f, 16.0f}, Color{95, 102, 110, 255}, Color{66, 72, 79, 255}, Color{78, 84, 90, 255}},
++        },
++        {
++            {"steel", Rectangle{-6.8f,-13.9f,13.6f,0.5f}, 1.2f, Color{255,255,255,90}},
++            {"grate", Rectangle{-5.5f,-10.0f,3.0f,0.35f}, 0.25f, Color{255,255,255,95}},
++            {"rust", Rectangle{3.7f,-10.6f,1.7f,1.2f}, 0.35f, Color{255,255,255,95}}
++        },
++        "VERTICAL BUNKER // layered decks, stairs, locked sectors", "visited_bunker"
++    };
++
++    std::unordered_map<int, DialogueNode> dialogue{
++        {1, {"Ops AI", "Captain, sonar picks up movement outside the hull. Want a full scan?", {
++            {"Do a silent scan.", 2, {}, {}, 0, "silent_scan"},
++            {"Ping active sonar.", 3, {}, {}, 0, "loud_scan"},
++            {"Ignore it.", -1, {}, {}, 0, ""},
++            {"I checked the bunker stack first.", 14, {"visited_bunker"}, {}, 0, ""}
++        }}},
++        {2, {"Ops AI", "Silent sweep complete. Heat signatures uncertain.", {{"Log it.", -1, {}, {}, 0, "prep_security"}, {"Open crew channel.", 5, {}, {}, 0, ""}}}},
++        {3, {"Ops AI", "Active ping answered. Something answered back.", {{"Seal doors.", 6, {}, {}, 0, "lockdown"}, {"Keep pinging.", -1, {}, {}, 0, ""}}}},
++        {4, {"Inner Voice", "The chair is warm, but nobody sits here anymore.", {{"Sit.", -1, {}, {}, 0, "memory_echo"}, {"Step away.", -1, {}, {}, 0, ""}}}},
++        {5, {"Deck Chief", "We hear metal scratching through vents. People are scared.", {{"Arm everyone.", -1, {}, {}, 0, "crew_armed"}, {"Stay calm.", -1, {}, {}, 0, "crew_calm"}}}},
++        {6, {"System", "LOCKDOWN INITIATED // Some doors failed to close. Keep everyone calm.", {{"Route power to seals.", -1, {}, {}, 0, "reroute_power"}}}},
++        {7, {"Mechanic", "Hatch wheel is stuck. Maybe pressure, maybe rust. Let's be careful.", {{"Force it.", 8, {}, {}, 0, "force_hatch"}, {"Leave it.", -1, {}, {}, 0, ""}}}},
++        {8, {"Narrator", "Warm air exhales like a living thing.", {{"Flashlight inside.", 9, {}, {}, 0, "light_check"}, {"Close it.", -1, {}, {}, 0, ""}}}},
++        {9, {"Narrator", "Wet footprints stop mid-corridor.", {{"Mark for investigation.", -1, {}, {}, 0, "trace_marked"}}}},
++        {10, {"Journal", "Blueprint margins mention a hidden vertical bunker beneath command.", {{"Pocket blueprint.", -1, {}, {}, 0, "got_old_blueprint"}, {"Leave it.", -1, {}, {}, 0, ""}}}},
++        {11, {"Command Hatch", "Final decision gate. If you enter now, the story ends.", {
++            {"Launch evacuation protocol.", 15, {"got_keycard_lv2"}, {}, 2, ""},
++            {"Stay and hold command.", 16, {}, {}, 0, ""},
++            {"Abort.", -1, {}, {}, 0, ""}
++        }, 10.0f, 17, "hesitated_final_gate"}},
++        {12, {"Officer", "You found us. This gives you Keycard Level 2.", {{"Take card.", -1, {}, {}, 0, "got_keycard_lv2"}}}},
++        {13, {"Cache", "Inside is an old mechanical key and emergency codes.", {{"Take key.", -1, {}, {}, 0, "got_mechanical_key"}}}},
++        {14, {"Ops AI", "Then you already know this was planned long ago.", {{"Use that intel now.", -1, {}, {}, 0, "bunker_intel_used"}}}},
++        {15, {"Ending", "You evacuate with survivors. The submarine sleeps beneath ice.", {{"END: Evacuation", -1, {}, {}, 0, "ending_evac"}}}},
++        {16, {"Ending", "You stay behind, lock every hatch, and disappear with the hull.", {{"END: Last Captain", -1, {}, {}, 0, "ending_last_captain"}}}},
++        {17, {"Ending", "You hesitated. Systems failed. Floodwater takes the lower decks.", {{"END: Drowned Decision", -1, {}, {}, 0, "ending_drowned"}}}},
++    };
++
++    AppMode appMode = AppMode::MainMenu;
++    GameState state = GameState::FreeRoam;
++    std::vector<std::string> flags;
++    std::vector<std::string> dialogueLog;
++    std::string endingText;
++
++    std::string currentSceneId = "control_room";
++    Vector2 playerWorld{0.0f, 0.0f};
++    Vector2 targetWorld{0.0f, 0.0f};
++    Vector2 playerVel{0.0f, 0.0f};
++    const float maxSpeed = 5.1f;
++    const float accel = 17.0f;
++    const float friction = 12.0f;
++    float clickCooldown = 0.0f;
++
++    int activeDialogueNode = -1;
++    float dialogueTimer = 0.0f;
++    bool isFading = false;
++    float fadeAlpha = 0.0f;
++    float fadeDirection = 1.0f;
++    std::string pendingScene;
++    Vector2 pendingSpawn{0, 0};
++
++    int keycardLevel = 0;
++    Vector2 cameraPan{0.0f, 0.0f};
++    float cameraAngle = 0.0f;
++    float cameraZoom = 34.0f;
++    const float maxAngle = 0.55f;
++    Vector2 prevMouse = GetMousePosition();
++    int frameCounter = 0;
++    float storyClock = 0.0f;
++    int worldBit = 0;
++
++    bool running = true;
++    while (running && !WindowShouldClose()) {
++        frameCounter++;
++        float dt = GetFrameTime();
++        storyClock += dt;
++        worldBit = static_cast<int>(flags.size() % 2);
++        if (clickCooldown > 0.0f) clickCooldown = std::max(0.0f, clickCooldown - dt);
++
++        Vector2 mouseNow = GetMousePosition();
++        Vector2 mouseDelta = Vector2Subtract(mouseNow, prevMouse);
++        prevMouse = mouseNow;
++
++        if (appMode == AppMode::MainMenu) {
++            Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 20, 360, 54};
++            Rectangle quitBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 50, 360, 48};
++            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) appMode = AppMode::InGame;
++            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, quitBtn)) running = false;
++
++            BeginDrawing();
++            ClearBackground(Color{8, 11, 15, 255});
++            DrawRectangle(0, 0, screenWidth, screenHeight, Color{12, 16, 24, 255});
++            for (int y = 0; y < screenHeight; y += 3) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, static_cast<unsigned char>(8 + y % 8)});
++            DrawRectangle(0, 0, screenWidth, 170, Color{130, 20, 28, 20});
++            DrawText("SUBMARINE NOIR", screenWidth / 2 - 180, 132, 48, Color{236, 224, 210, 255});
++            DrawText("Vertical stacks, keys, timed choices, branching endings", screenWidth / 2 - 280, 188, 22, Color{177, 191, 204, 240});
++            DrawText("World logic: every major state resolves to 0/1 (binary bit)", screenWidth / 2 - 285, 218, 16, Color{155, 175, 192, 230});
++
++            bool hoverStart = CheckCollisionPointRec(mouseNow, startBtn);
++            bool hoverQuit = CheckCollisionPointRec(mouseNow, quitBtn);
++            DrawRectangleRec(startBtn, hoverStart ? Color{72, 88, 102, 255} : Color{48, 62, 74, 255});
++            DrawRectangleLinesEx(startBtn, 2.0f, Color{168, 188, 206, 230});
++            DrawText("START DIVE", static_cast<int>(startBtn.x + 108), static_cast<int>(startBtn.y + 15), 24, RAYWHITE);
++            DrawRectangleRec(quitBtn, hoverQuit ? Color{80, 50, 50, 255} : Color{58, 38, 38, 255});
++            DrawRectangleLinesEx(quitBtn, 2.0f, Color{190, 143, 143, 230});
++            DrawText("QUIT", static_cast<int>(quitBtn.x + 145), static_cast<int>(quitBtn.y + 13), 22, RAYWHITE);
++            EndDrawing();
++            continue;
++        }
++
++        if (appMode == AppMode::Ending) {
++            BeginDrawing();
++            ClearBackground(BLACK);
++            DrawRectangle(0, 0, screenWidth, screenHeight, Color{12, 14, 20, 255});
++            DrawText("ENDING", screenWidth / 2 - 80, 180, 48, Color{238, 198, 156, 255});
++            DrawText(endingText.c_str(), screenWidth / 2 - 390, 280, 28, RAYWHITE);
++            DrawText("Press left click for Main Menu", screenWidth / 2 - 180, 380, 20, Color{170, 190, 210, 255});
++            EndDrawing();
++            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
++                appMode = AppMode::MainMenu;
++                flags.clear();
++                dialogueLog.clear();
++                endingText.clear();
++                currentSceneId = "control_room";
++                playerWorld = Vector2{0.0f, 0.0f};
++                targetWorld = playerWorld;
++                keycardLevel = 0;
++                storyClock = 0.0f;
++                state = GameState::FreeRoam;
++            }
++            continue;
++        }
++
++        Scene& scene = scenes[currentSceneId];
++        SetFlag(flags, scene.onEnterFlag);
++
++        if (!scene.verticalCutaway && IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) {
++            cameraPan = Vector2Add(cameraPan, mouseDelta);
++        }
++        if (!scene.verticalCutaway && IsMouseButtonDown(MOUSE_MIDDLE_BUTTON)) {
++            cameraAngle += mouseDelta.x * 0.0065f;
++            cameraAngle = std::clamp(cameraAngle, -maxAngle, maxAngle);
++        }
++        cameraZoom = std::clamp(cameraZoom + GetMouseWheelMove() * 2.0f, 24.0f, 48.0f);
++
++        if (state == GameState::FreeRoam) {
++            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && clickCooldown <= 0.0f) {
++                Vector2 mouseWorld = ToWorld(scene, mouseNow, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++                bool clickedHotspot = false;
++
++                for (const auto& h : scene.hotspots) {
++                    if (!InRect(mouseWorld, h.worldRect)) continue;
++                    clickedHotspot = true;
++
++                    if (keycardLevel < h.requiredKeycardLevel || (!h.requiredFlag.empty() && !HasFlag(flags, h.requiredFlag))) {
++                        if (!h.deniedText.empty()) dialogueLog.push_back("LOCKED: " + h.deniedText);
++                        break;
++                    }
++
++                    if (h.grantKeycardLevel > 0) {
++                        keycardLevel = std::max(keycardLevel, h.grantKeycardLevel);
++                        dialogueLog.push_back("Acquired Keycard Level " + std::to_string(h.grantKeycardLevel));
++                    }
++                    SetFlag(flags, h.grantFlag);
++
++                    if (h.movePlayer) {
++                        targetWorld = FindValidTarget(h.moveTarget, scene, playerWorld);
++                    } else if (!h.transitionTo.empty()) {
++                        pendingScene = h.transitionTo;
++                        pendingSpawn = h.spawnWorld;
++                        state = GameState::Transition;
++                        isFading = true;
++                        fadeDirection = 1.0f;
++                    } else if (h.dialogueNode >= 0) {
++                        activeDialogueNode = h.dialogueNode;
++                        dialogueTimer = dialogue[activeDialogueNode].timeLimitSec;
++                        state = GameState::Dialogue;
++                    }
++                    break;
++                }
++
++                if (!clickedHotspot) {
++                    targetWorld = FindValidTarget(mouseWorld, scene, playerWorld);
++                }
++                clickCooldown = 0.10f;
++            }
++
++            Vector2 toTarget = Vector2Subtract(targetWorld, playerWorld);
++            float d = Vector2Length(toTarget);
++            if (d > 0.02f) {
++                Vector2 desired = Vector2Scale(Vector2Normalize(toTarget), maxSpeed);
++                playerVel = Vector2Add(playerVel, Vector2Scale(Vector2Subtract(desired, playerVel), std::min(1.0f, accel * dt)));
++            } else {
++                playerVel = Vector2Add(playerVel, Vector2Scale(playerVel, -std::min(1.0f, friction * dt)));
++            }
++
++            Vector2 step = Vector2Scale(playerVel, dt);
++            Vector2 candidate = Vector2Add(playerWorld, step);
++            if (!IsBlocked(candidate, scene)) playerWorld = candidate;
++            else {
++                Vector2 xOnly{playerWorld.x + step.x, playerWorld.y};
++                Vector2 yOnly{playerWorld.x, playerWorld.y + step.y};
++                if (!IsBlocked(xOnly, scene)) playerWorld = xOnly;
++                else if (!IsBlocked(yOnly, scene)) playerWorld = yOnly;
++                else playerVel = Vector2{0, 0};
++            }
++        } else if (state == GameState::Dialogue && activeDialogueNode >= 0) {
++            DialogueNode& node = dialogue[activeDialogueNode];
++            if (node.timeLimitSec > 0.0f) {
++                dialogueTimer -= dt;
++                if (dialogueTimer <= 0.0f) {
++                    SetFlag(flags, node.timeoutSetFlag);
++                    activeDialogueNode = node.timeoutNextNode;
++                    if (activeDialogueNode < 0) state = GameState::FreeRoam;
++                    else dialogueTimer = dialogue[activeDialogueNode].timeLimitSec;
++                }
++            }
++
++            for (size_t i = 0; i < node.choices.size(); ++i) {
++                Rectangle btn{520, static_cast<float>(screenHeight - 146 + static_cast<int>(i) * 38), static_cast<float>(screenWidth - 560), 30};
++                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, btn)) {
++                    const Choice& pick = node.choices[i];
++                    if (!ChoiceUnlocked(pick, flags, keycardLevel)) {
++                        dialogueLog.push_back("Choice locked.");
++                        break;
++                    }
++
++                    SetFlag(flags, pick.setFlag);
++                    if (pick.setFlag == "ending_evac") endingText = "You evacuated with survivors.";
++                    if (pick.setFlag == "ending_last_captain") endingText = "You stayed and sealed the hull.";
++                    if (pick.setFlag == "ending_drowned") endingText = "You hesitated. Flood took the decks.";
++
++                    dialogueLog.push_back(node.speaker + ": " + node.line);
++                    dialogueLog.push_back("YOU: " + pick.text);
++                    if (dialogueLog.size() > 14) dialogueLog.erase(dialogueLog.begin(), dialogueLog.begin() + 2);
++
++                    activeDialogueNode = pick.nextNode;
++                    if (HasFlag(flags, "ending_evac") || HasFlag(flags, "ending_last_captain") || HasFlag(flags, "ending_drowned")) {
++                        appMode = AppMode::Ending;
++                        state = GameState::FreeRoam;
++                        break;
++                    }
++                    if (activeDialogueNode < 0) state = GameState::FreeRoam;
++                    else dialogueTimer = dialogue[activeDialogueNode].timeLimitSec;
++                    break;
++                }
++            }
++        }
++
++        if (state == GameState::Transition && isFading) {
++            fadeAlpha += fadeDirection * dt;
++            if (fadeDirection > 0.0f && fadeAlpha >= 1.0f) {
++                fadeAlpha = 1.0f;
++                currentSceneId = pendingScene;
++                Scene& nextScene = scenes[currentSceneId];
++                playerWorld = FindValidTarget(pendingSpawn, nextScene, Vector2{0.0f, 0.0f});
++                targetWorld = playerWorld;
++                playerVel = Vector2{0, 0};
++                fadeDirection = -1.0f;
++            } else if (fadeDirection < 0.0f && fadeAlpha <= 0.0f) {
++                fadeAlpha = 0.0f;
++                isFading = false;
++                state = GameState::FreeRoam;
++            }
++        }
++
++        float flicker = 0.85f + 0.15f * std::sin(frameCounter * 0.09f);
++        if ((frameCounter % 160) < 6) flicker *= 0.55f;
++
++        BeginDrawing();
++        ClearBackground(BLACK);
++        DrawRectangle(0, 0, screenWidth, screenHeight, scene.background);
++
++        if (!scene.verticalCutaway) {
++            for (int i = -10; i <= 10; ++i) {
++                Vector2 a = ToScreen(scene, Vector2{-9.5f, static_cast<float>(i)}, 0.21f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++                Vector2 b = ToScreen(scene, Vector2{9.5f, static_cast<float>(i)}, 0.21f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++                DrawLineEx(a, b, 1.0f, Color{140, 144, 148, 28});
++                Vector2 c = ToScreen(scene, Vector2{static_cast<float>(i), -9.5f}, 0.21f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++                Vector2 d = ToScreen(scene, Vector2{static_cast<float>(i), 9.5f}, 0.21f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++                DrawLineEx(c, d, 1.0f, Color{140, 144, 148, 28});
++            }
++        }
++
++        float playerDepth = playerWorld.x + playerWorld.y;
++        for (const auto& g : scene.solids) if (DepthOf(g) <= playerDepth || scene.verticalCutaway) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++
++        Vector2 p = ToScreen(scene, playerWorld, 0.25f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++        float bob = std::sin(frameCounter * 0.15f) * 1.6f * std::min(1.0f, Vector2Length(playerVel));
++        DrawCircleV(Vector2{p.x + 9, p.y + 8}, 12.0f, Color{8, 8, 12, 120});
++        DrawCircleV(Vector2{p.x, p.y + bob}, 12.5f, Color{235, 230, 220, 255});
++        DrawCircleV(Vector2{p.x, p.y - 2 + bob}, 8.3f, Color{20, 20, 25, 255});
++
++        if (!scene.verticalCutaway) {
++            for (const auto& g : scene.solids) if (DepthOf(g) > playerDepth) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++        }
++        for (const auto& w : scene.wallsAlways) DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++        for (const auto& d : scene.decals) DrawDecal(scene, d, mats, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++
++        if (scene.verticalCutaway) {
++            for (int y = 0; y < screenHeight; y += 4) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, 10});
++        }
++
++        Vector2 mouseWorld = ToWorld(scene, mouseNow, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++        for (const auto& h : scene.hotspots) {
++            Vector2 c{h.worldRect.x + h.worldRect.width * 0.5f, h.worldRect.y + h.worldRect.height * 0.5f};
++            Vector2 cs = ToScreen(scene, c, 0.25f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
++            bool hover = InRect(mouseWorld, h.worldRect);
++            DrawCircleV(cs, hover ? 16.0f : 10.0f, hover ? Color{248, 228, 120, 130} : Color{140, 220, 180, 70});
++            if (hover) DrawText(h.label.c_str(), static_cast<int>(cs.x + 12), static_cast<int>(cs.y - 9), 16, RAYWHITE);
++        }
++
++        for (int y = 0; y < screenHeight; y += 3) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, static_cast<unsigned char>(9 + (y + frameCounter) % 10)});
++        DrawRectangle(0, 0, screenWidth, 110, Color{86, 25, 28, static_cast<unsigned char>((10 + std::abs((frameCounter % 90) - 45)) * flicker)});
++
++        DrawRectangle(0, 0, screenWidth, 44, Color{6, 10, 14, 230});
++        DrawRectangle(10, 7, 820, 30, Color{18, 24, 30, 200});
++        DrawRectangleLinesEx(Rectangle{10, 7, 820, 30}, 1.5f, Color{120, 140, 155, 170});
++        DrawText(scene.flavorText.c_str(), 18, 14, 14, Color{210, 220, 224, 240});
++        DrawText(TextFormat("KC:%i  Time:%02i  WORLD_BIT:%i", keycardLevel, static_cast<int>(storyClock), worldBit), screenWidth - 330, 14, 14, Color{180, 230, 190, 255});
++
++        DrawRectangle(0, screenHeight - 160, screenWidth, 160, Color{8, 10, 14, 195});
++        DrawRectangle(14, screenHeight - 154, 470, 148, Color{12, 18, 24, 180});
++        DrawRectangleLinesEx(Rectangle{14, static_cast<float>(screenHeight - 154), 470, 148}, 1.5f, Color{110, 135, 150, 170});
++        DrawText("DIALOG LOG", 26, screenHeight - 146, 16, Color{233, 204, 149, 255});
++        for (size_t i = 0; i < dialogueLog.size(); ++i) DrawText(dialogueLog[i].c_str(), 26, screenHeight - 124 + static_cast<int>(i) * 16, 14, Color{205, 215, 218, 245});
++
++        if (state == GameState::Dialogue && activeDialogueNode >= 0) {
++            DialogueNode& node = dialogue[activeDialogueNode];
++            DrawRectangle(500, screenHeight - 244, screenWidth - 520, 232, Color{12, 14, 18, 236});
++            DrawRectangleLinesEx(Rectangle{500, static_cast<float>(screenHeight - 244), static_cast<float>(screenWidth - 520), 232}, 2.0f, Color{132, 156, 178, 255});
++            DrawText(node.speaker.c_str(), 520, screenHeight - 224, 20, Color{247, 183, 124, 255});
++            DrawText(node.line.c_str(), 520, screenHeight - 193, 19, RAYWHITE);
++            if (node.timeLimitSec > 0.0f) {
++                DrawText(TextFormat("TIME LEFT: %.1f", std::max(0.0f, dialogueTimer)), screenWidth - 300, screenHeight - 224, 18, Color{255, 130, 130, 255});
++            }
++            for (size_t i = 0; i < node.choices.size(); ++i) {
++                Rectangle btn{520, static_cast<float>(screenHeight - 146 + static_cast<int>(i) * 38), static_cast<float>(screenWidth - 560), 30};
++                bool unlocked = ChoiceUnlocked(node.choices[i], flags, keycardLevel);
++                bool hover = unlocked && CheckCollisionPointRec(mouseNow, btn);
++                DrawRectangleRec(btn, !unlocked ? Color{52, 48, 48, 255} : (hover ? Color{58, 78, 96, 255} : Color{31, 43, 54, 255}));
++                DrawRectangleLinesEx(btn, 1.0f, unlocked ? Color{150, 173, 191, 255} : Color{110, 90, 90, 255});
++                DrawText(node.choices[i].text.c_str(), static_cast<int>(btn.x + 10), static_cast<int>(btn.y + 7), 15, unlocked ? RAYWHITE : Color{170, 150, 150, 255});
++            }
++        }
++
++        DrawRectangle(0, 0, screenWidth, 24, Color{0, 0, 0, 235});
++        DrawRectangle(0, screenHeight - 24, screenWidth, 24, Color{0, 0, 0, 235});
++        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom", screenWidth - 560, screenHeight - 18, 12, Color{180, 186, 194, 230});
++
++        if (isFading) DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));
++        EndDrawing();
++    }
++
++    UnloadTexture(mats.steel);
++    UnloadTexture(mats.rust);
++    UnloadTexture(mats.grate);
++    UnloadTexture(mats.water);
++    CloseWindow();
++    return 0;
++}
+diff --git a/src/raylib_compat.cpp b/src/raylib_compat.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..9c08d8fc3e5ec058303cdff8f220f01d0f22d49f
+--- /dev/null
++++ b/src/raylib_compat.cpp
+@@ -0,0 +1,103 @@
++#include "raylib_compat.h"
++
++#if !SUBNOIR_HAS_RAYLIB
++
++#include <algorithm>
++#include <cmath>
++#include <cstdio>
++
++namespace {
++int g_frameCount = 0;
++}
++
++void InitWindow(int, int, const char*) {}
++void SetTargetFPS(int) {}
++
++bool WindowShouldClose() {
++    return g_frameCount++ > 1;
++}
++
++float GetFrameTime() {
++    return 1.0f / 60.0f;
++}
++
++void CloseWindow() {}
++
++Vector2 GetMousePosition() {
++    return Vector2{0.0f, 0.0f};
++}
++
++bool IsMouseButtonPressed(int) {
++    return false;
++}
++
++bool IsMouseButtonDown(int) {
++    return false;
++}
++
++float GetMouseWheelMove() {
++    return 0.0f;
++}
++
++bool CheckCollisionPointRec(Vector2 point, Rectangle rec) {
++    return point.x >= rec.x && point.x <= rec.x + rec.width && point.y >= rec.y && point.y <= rec.y + rec.height;
++}
++
++Vector2 Vector2Subtract(Vector2 v1, Vector2 v2) {
++    return Vector2{v1.x - v2.x, v1.y - v2.y};
++}
++
++float Vector2Length(Vector2 v) {
++    return std::sqrt(v.x * v.x + v.y * v.y);
++}
++
++Vector2 Vector2Scale(Vector2 v, float scale) {
++    return Vector2{v.x * scale, v.y * scale};
++}
++
++Vector2 Vector2Normalize(Vector2 v) {
++    const float length = Vector2Length(v);
++    if (length <= 0.00001f) {
++        return Vector2{0.0f, 0.0f};
++    }
++    return Vector2{v.x / length, v.y / length};
++}
++
++Vector2 Vector2Add(Vector2 v1, Vector2 v2) {
++    return Vector2{v1.x + v2.x, v1.y + v2.y};
++}
++
++float Vector2Distance(Vector2 v1, Vector2 v2) {
++    return Vector2Length(Vector2Subtract(v1, v2));
++}
++
++void BeginDrawing() {}
++void EndDrawing() {}
++void ClearBackground(Color) {}
++void DrawRectangle(int, int, int, int, Color) {}
++void DrawLineEx(Vector2, Vector2, float, Color) {}
++void DrawTriangle(Vector2, Vector2, Vector2, Color) {}
++void DrawCircleV(Vector2, float, Color) {}
++void DrawText(const char*, int, int, int, Color) {}
++void DrawRectangleRec(Rectangle, Color) {}
++void DrawRectangleLinesEx(Rectangle, float, Color) {}
++
++Texture2D LoadTexture(const char*) { return Texture2D{0, 256, 256, 1, 0}; }
++void UnloadTexture(Texture2D) {}
++void DrawTexturePro(Texture2D, Rectangle, Rectangle, Vector2, float, Color) {}
++
++Color Fade(Color color, float alpha) {
++    alpha = std::clamp(alpha, 0.0f, 1.0f);
++    color.a = static_cast<unsigned char>(alpha * static_cast<float>(color.a));
++    return color;
++}
++
++const char* TextFormat(const char* text, ...) {
++    static char buffer[1024];
++    va_list args;
++    va_start(args, text);
++    std::vsnprintf(buffer, sizeof(buffer), text, args);
++    va_end(args);
++    return buffer;
++}
++
+#endif
+diff --git a/src/raylib_compat.h b/src/raylib_compat.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000
+--- /dev/null
++++ b/src/raylib_compat.h
+@@ -0,0 +1,70 @@
++#pragma once
++
++#if defined(SUBNOIR_HAS_RAYLIB) && (SUBNOIR_HAS_RAYLIB == 0)
++// Forced compatibility mode from CMake.
++#elif __has_include(<raylib.h>)
++#include <raylib.h>
++#include <raymath.h>
++#define SUBNOIR_HAS_RAYLIB 1
++#else
++#define SUBNOIR_HAS_RAYLIB 0
++#endif
++
++#if SUBNOIR_HAS_RAYLIB == 0
++#include <cstdarg>
++
++struct Vector2 { float x; float y; };
++struct Vector3 { float x; float y; float z; };
++struct Rectangle { float x; float y; float width; float height; };
++struct Color { unsigned char r; unsigned char g; unsigned char b; unsigned char a; };
++
++struct Texture2D { unsigned int id; int width; int height; int mipmaps; int format; };
++
++inline constexpr Color BLACK{0, 0, 0, 255};
++inline constexpr Color RAYWHITE{245, 245, 245, 255};
++
++enum MouseButton {
++    MOUSE_LEFT_BUTTON = 0,
++    MOUSE_RIGHT_BUTTON = 1,
++    MOUSE_MIDDLE_BUTTON = 2,
++};
++
++void InitWindow(int width, int height, const char* title);
++void SetTargetFPS(int fps);
++bool WindowShouldClose();
++float GetFrameTime();
++void CloseWindow();
++
++Vector2 GetMousePosition();
++bool IsMouseButtonPressed(int button);
++bool IsMouseButtonDown(int button);
++float GetMouseWheelMove();
++bool CheckCollisionPointRec(Vector2 point, Rectangle rec);
++
++Vector2 Vector2Subtract(Vector2 v1, Vector2 v2);
++float Vector2Length(Vector2 v);
++Vector2 Vector2Scale(Vector2 v, float scale);
++Vector2 Vector2Normalize(Vector2 v);
++Vector2 Vector2Add(Vector2 v1, Vector2 v2);
++float Vector2Distance(Vector2 v1, Vector2 v2);
++
++void BeginDrawing();
++void EndDrawing();
++void ClearBackground(Color color);
++
++void DrawRectangle(int posX, int posY, int width, int height, Color color);
++void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
++void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
++void DrawCircleV(Vector2 center, float radius, Color color);
++void DrawText(const char* text, int posX, int posY, int fontSize, Color color);
++void DrawRectangleRec(Rectangle rec, Color color);
++void DrawRectangleLinesEx(Rectangle rec, float lineThick, Color color);
++
++Texture2D LoadTexture(const char* fileName);
++void UnloadTexture(Texture2D texture);
++void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
++
++Color Fade(Color color, float alpha);
++const char* TextFormat(const char* text, ...);
++
++#endif
+ 
+EOF
+)

@@ -41,6 +41,7 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
   - scene exit hotspotovi.
 
 ### Vizualni isometric/3D upgrade
+- Dodani **actual texture assets** u `assets/textures` (steel/rust/grate/water) i runtime material decals preko scene geometrije.
 - **Submarine atmosfera**: industrijske cijevi/strojni blokovi + viewport “water movement” iza stakla.
 - Dodan **faux 3D isometric renderer** (projekcija + volumetrijski prism objekti).
 - Scene imaju ručno definiranu geometriju (`IsoPrism`) s top/left/right shadingom i punim zidovima/volumenima (jasniji level design).
@@ -69,6 +70,15 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 - Ako raylib nije dostupan: koristi se **lokalni headless compatibility backend** (`src/raylib_compat.cpp`) tako da build i CI mogu proći i bez mreže/dependencyja.
 
 ---
+
+## Assets
+- `assets/textures/steel_plate.bmp`
+- `assets/textures/rust_panel.bmp`
+- `assets/textures/grate_floor.bmp`
+- `assets/textures/water_view.bmp`
+- `assets/materials_manifest.txt`
+
+Ako koristiš Blender: exportaj texture atlase u ovaj folder i zamijeni datoteke istim imenima za instant upgrade rendera.
 
 ## Pokretanje
 

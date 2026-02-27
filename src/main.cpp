@@ -41,6 +41,20 @@ struct Hotspot {
 
 struct IsoPrism { Vector3 origin; Vector3 size; Color top; Color left; Color right; };
 
+struct PropDecal {
+    std::string material;
+    Rectangle worldRect;
+    float z = 0.25f;
+    Color tint{255,255,255,255};
+};
+
+struct MaterialBank {
+    Texture2D steel{};
+    Texture2D rust{};
+    Texture2D grate{};
+    Texture2D water{};
+};
+
 struct Scene {
     std::string id;
     bool verticalCutaway = false;
@@ -50,6 +64,7 @@ struct Scene {
     std::vector<Hotspot> hotspots;
     std::vector<IsoPrism> solids;
     std::vector<IsoPrism> wallsAlways;
+    std::vector<PropDecal> decals;
     std::string flavorText;
     std::string onEnterFlag;
 };
@@ -155,6 +170,23 @@ static Vector2 FindValidTarget(Vector2 desired, const Scene& scene, Vector2 fall
 
 static float DepthOf(const IsoPrism& g) { return g.origin.x + g.origin.y + (g.size.x + g.size.y) * 0.5f; }
 
+static Texture2D LoadMaterialTexture(const char* path) {
+    return LoadTexture(path);
+}
+
+static void DrawDecal(const Scene& scene, const PropDecal& d, const MaterialBank& mats, Vector2 origin, float scale, float angle, Vector2 pan) {
+    const Texture2D* tex = &mats.steel;
+    if (d.material == "rust") tex = &mats.rust;
+    else if (d.material == "grate") tex = &mats.grate;
+    else if (d.material == "water") tex = &mats.water;
+
+    Vector2 p0 = ToScreen(scene, Vector2{d.worldRect.x, d.worldRect.y}, d.z, origin, scale, angle, pan);
+    Vector2 p1 = ToScreen(scene, Vector2{d.worldRect.x + d.worldRect.width, d.worldRect.y + d.worldRect.height}, d.z, origin, scale, angle, pan);
+    Rectangle dst{std::min(p0.x,p1.x), std::min(p0.y,p1.y), std::fabs(p1.x-p0.x)+1.0f, std::fabs(p1.y-p0.y)+1.0f};
+    Rectangle src{0,0, static_cast<float>(tex->width), static_cast<float>(tex->height)};
+    DrawTexturePro(*tex, src, dst, Vector2{0,0}, 0.0f, d.tint);
+}
+
 static bool ChoiceUnlocked(const Choice& c, const std::vector<std::string>& flags, int keycardLevel) {
     if (keycardLevel < c.requiredKeycardLevel) return false;
     for (const auto& f : c.requiresFlags) if (!HasFlag(flags, f)) return false;
@@ -169,6 +201,12 @@ int main() {
 
     InitWindow(screenWidth, screenHeight, "Submarine Noir - Branching Prototype");
     SetTargetFPS(60);
+
+    MaterialBank mats{};
+    mats.steel = LoadMaterialTexture("assets/textures/steel_plate.bmp");
+    mats.rust = LoadMaterialTexture("assets/textures/rust_panel.bmp");
+    mats.grate = LoadMaterialTexture("assets/textures/grate_floor.bmp");
+    mats.water = LoadMaterialTexture("assets/textures/water_view.bmp");
 
     std::unordered_map<std::string, Scene> scenes;
 
@@ -193,6 +231,12 @@ int main() {
             {{-7.2f, -6.0f, 0.2f}, {14.4f, 0.85f, 3.2f}, Color{139, 143, 146, 255}, Color{95, 98, 102, 255}, Color{112, 115, 120, 255}},
             {{-7.2f, -5.15f, 0.2f}, {0.85f, 11.15f, 3.2f}, Color{132, 137, 142, 255}, Color{84, 90, 98, 255}, Color{103, 110, 117, 255}},
         },
+        {
+            {"steel", Rectangle{-7.0f,-5.8f,13.8f,0.45f}, 2.9f, Color{255,255,255,90}},
+            {"grate", Rectangle{-6.6f,-1.2f,5.2f,0.35f}, 0.22f, Color{255,255,255,95}},
+            {"rust", Rectangle{-5.9f,-4.1f,0.4f,8.0f}, 0.65f, Color{255,255,255,95}},
+            {"water", Rectangle{-6.4f,-5.75f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}}
+        },
         "CONTROL ROOM // pressure, steel, failing trust", "visited_control"
     };
 
@@ -212,6 +256,11 @@ int main() {
         {
             {{-7.8f, -5.3f, 0.2f}, {15.6f, 0.85f, 3.0f}, Color{141, 95, 74, 255}, Color{92, 63, 49, 255}, Color{113, 77, 60, 255}},
             {{-7.8f, -4.45f, 0.2f}, {0.85f, 9.95f, 3.0f}, Color{132, 86, 69, 255}, Color{84, 56, 45, 255}, Color{103, 68, 54, 255}},
+        },
+        {
+            {"rust", Rectangle{-6.5f,-4.3f,0.5f,8.1f}, 0.62f, Color{255,255,255,100}},
+            {"grate", Rectangle{-2.5f,-0.3f,4.6f,0.35f}, 0.22f, Color{255,255,255,96}},
+            {"water", Rectangle{-6.9f,-5.0f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}}
         },
         "ENGINE CORRIDOR // rust and red emergency strips", "visited_engine"
     };
@@ -243,6 +292,11 @@ int main() {
         {
             {{-7.0f, -14.0f, 0.0f}, {14.0f, 0.6f, 16.0f}, Color{100, 108, 116, 255}, Color{72, 78, 84, 255}, Color{83, 90, 96, 255}},
             {{-7.0f, -14.0f, 0.0f}, {0.6f, 12.8f, 16.0f}, Color{95, 102, 110, 255}, Color{66, 72, 79, 255}, Color{78, 84, 90, 255}},
+        },
+        {
+            {"steel", Rectangle{-6.8f,-13.9f,13.6f,0.5f}, 1.2f, Color{255,255,255,90}},
+            {"grate", Rectangle{-5.5f,-10.0f,3.0f,0.35f}, 0.25f, Color{255,255,255,95}},
+            {"rust", Rectangle{3.7f,-10.6f,1.7f,1.2f}, 0.35f, Color{255,255,255,95}}
         },
         "VERTICAL BUNKER // layered decks, stairs, locked sectors", "visited_bunker"
     };
@@ -535,6 +589,7 @@ int main() {
             for (const auto& g : scene.solids) if (DepthOf(g) > playerDepth) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         }
         for (const auto& w : scene.wallsAlways) DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        for (const auto& d : scene.decals) DrawDecal(scene, d, mats, baseOrigin, cameraZoom, cameraAngle, cameraPan);
 
         if (scene.verticalCutaway) {
             for (int y = 0; y < screenHeight; y += 4) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, 10});
@@ -591,6 +646,10 @@ int main() {
         EndDrawing();
     }
 
+    UnloadTexture(mats.steel);
+    UnloadTexture(mats.rust);
+    UnloadTexture(mats.grate);
+    UnloadTexture(mats.water);
     CloseWindow();
     return 0;
 }

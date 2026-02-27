@@ -1,0 +1,4 @@
+steel_plate.bmp: hull walls, lockers, beams
+rust_panel.bmp: old machinery and pipes
+grate_floor.bmp: industrial floor overlays
+water_view.bmp: viewport/water emissive layer

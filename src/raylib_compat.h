@@ -18,6 +18,8 @@ struct Vector3 { float x; float y; float z; };
 struct Rectangle { float x; float y; float width; float height; };
 struct Color { unsigned char r; unsigned char g; unsigned char b; unsigned char a; };
 
+struct Texture2D { unsigned int id; int width; int height; int mipmaps; int format; };
+
 inline constexpr Color BLACK{0, 0, 0, 255};
 inline constexpr Color RAYWHITE{245, 245, 245, 255};
 
@@ -57,6 +59,10 @@ void DrawCircleV(Vector2 center, float radius, Color color);
 void DrawText(const char* text, int posX, int posY, int fontSize, Color color);
 void DrawRectangleRec(Rectangle rec, Color color);
 void DrawRectangleLinesEx(Rectangle rec, float lineThick, Color color);
+
+Texture2D LoadTexture(const char* fileName);
+void UnloadTexture(Texture2D texture);
+void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
 
 Color Fade(Color color, float alpha);
 const char* TextFormat(const char* text, ...);
