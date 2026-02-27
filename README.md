@@ -17,16 +17,18 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 
 ---
 
-## Što je implementirano (NOVI UPDATE - DALJE)
+## Što je implementirano (NOVI UPDATE - DALJE++)
 
 ### Core gameplay
 - Dodan mali **click cooldown** da input ne spamma i UI interakcija izgleda profesionalnije.
+- Dodan **Main Menu** (Start/Quit) za bolji flow kao prava igra.
 - 2 scene:
   - `control_room`
   - `engine_corridor`
 - Klik na podlogu -> lik ide do ciljne točke.
 - Kretanje je sada u **isometric world koordinatama** (screen <-> iso konverzija).
 - Walkable zona + **blocker kolizije** (lik ne prolazi kroz zidove/velike objekte).
+- Spawn i target validacija su popravljeni da lik ne zapne na startu.
 - Hotspot interakcije:
   - dijalog hotspotovi,
   - scene exit hotspotovi.
@@ -34,8 +36,10 @@ Praktično: statični ili polustatični painterly background + interaktivni 2D g
 ### Vizualni isometric/3D upgrade
 - Dodan **faux 3D isometric renderer** (projekcija + volumetrijski prism objekti).
 - Scene imaju ručno definiranu geometriju (`IsoPrism`) s top/left/right shadingom i punim zidovima/volumenima (jasniji level design).
+- Prostorije su složene kao **L-shape** (2 vidljiva zida), a vanjski zidovi se uvijek crtaju.
 - Dodan depth layering: objekti se crtaju ispred/iza lika po world dubini (2.5D osjećaj).
-- Dodan **camera control**: RMB drag = pan, MMB drag = rotacija scene.
+- Dodan **camera control**: RMB drag = pan, MMB drag = rotacija scene (limitirano, nikad van zidova).
+- Dodan **zoom in/out** na mouse wheel.
 - Dodan floor grid za jači isometric čitljiv output.
 - Dodani analog-horror overlay efekti: scanlines + pulsirajući crveni cast.
 
@@ -105,7 +109,8 @@ cmake --build build -j
 ## Kontrole
 - **LMB**: kretanje / interakcija / odabir dialogue choice
 - **RMB (drži i pomiči miš)**: pomicanje kamere (pan)
-- **MMB / pritisak wheel-a (drži i pomiči miš)**: rotacija scene
+- **MMB / pritisak wheel-a (drži i pomiči miš)**: rotacija scene (limitirana)
+- **Mouse Wheel**: zoom in/out
 - **ESC**: izlaz (u real raylib buildu)
 
 ---
@@ -143,6 +148,7 @@ cmake --build build -j
    - Učitavanje ručno nacrtanih painterly background/foreground layera po sceni (stil reference slike).
    - Soft shadow pass i AO fake overlay za realističniji “diorama” feeling.
    - Uvesti depth mask occlusion da lik prolazi iza objekata.
+   - Dodati volumetrijsku maglu i cinematic light shafts.
 
 2. **Pathfinding upgrade**
    - Zamijeniti "direct walk" sa waypoint/A* navigacijom preko walkmesh triangulacije.

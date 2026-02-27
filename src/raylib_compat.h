@@ -36,6 +36,7 @@ void CloseWindow();
 Vector2 GetMousePosition();
 bool IsMouseButtonPressed(int button);
 bool IsMouseButtonDown(int button);
+float GetMouseWheelMove();
 bool CheckCollisionPointRec(Vector2 point, Rectangle rec);
 
 Vector2 Vector2Subtract(Vector2 v1, Vector2 v2);

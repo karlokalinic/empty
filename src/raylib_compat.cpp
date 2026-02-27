@@ -35,6 +35,10 @@ bool IsMouseButtonDown(int) {
     return false;
 }
 
+float GetMouseWheelMove() {
+    return 0.0f;
+}
+
 bool CheckCollisionPointRec(Vector2 point, Rectangle rec) {
     return point.x >= rec.x && point.x <= rec.x + rec.width && point.y >= rec.y && point.y <= rec.y + rec.height;
 }
