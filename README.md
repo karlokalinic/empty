@@ -57,6 +57,15 @@ cmake --build build -j
 ./build/submarine_noir
 ```
 
+### Windows PowerShell (Ninja / MinGW)
+```powershell
+cmake -S . -B build
+cmake --build build -j
+.\build\submarine_noir.exe
+```
+
+Napomena: na Windowsu je izlazni fajl `submarine_noir.exe`, ne `./build/submarine_noir`.
+
 ### Offline/CI fallback (bez raylib)
 Ako okruženje ne može instalirati/povući raylib, projekt se i dalje kompilira uz headless backend.
 Isti build koraci vrijede, ali runtime je no-op render (korisno za provjeru da je kod i arhitektura ispravna).

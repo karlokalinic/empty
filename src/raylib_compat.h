@@ -2,6 +2,7 @@
 
 #if __has_include(<raylib.h>)
 #include <raylib.h>
+#include <raymath.h>
 #define SUBNOIR_HAS_RAYLIB 1
 #else
 #define SUBNOIR_HAS_RAYLIB 0
