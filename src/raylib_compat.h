@@ -29,6 +29,11 @@ enum MouseButton {
     MOUSE_MIDDLE_BUTTON = 2,
 };
 
+enum KeyboardKey {
+    KEY_F5 = 294,
+    KEY_F9 = 298,
+};
+
 void InitWindow(int width, int height, const char* title);
 void SetTargetFPS(int fps);
 bool WindowShouldClose();
@@ -38,6 +43,7 @@ void CloseWindow();
 Vector2 GetMousePosition();
 bool IsMouseButtonPressed(int button);
 bool IsMouseButtonDown(int button);
+bool IsKeyPressed(int key);
 float GetMouseWheelMove();
 bool CheckCollisionPointRec(Vector2 point, Rectangle rec);
 

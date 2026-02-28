@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -291,6 +293,81 @@ static void PushLog(std::vector<std::string>& dialogueLog, const std::string& li
     if (dialogueLog.size() > 14) dialogueLog.erase(dialogueLog.begin(), dialogueLog.begin() + 1);
 }
 
+static void SaveSnapshot(const std::string& path,
+                         const std::string& currentSceneId,
+                         Vector2 playerWorld,
+                         Vector2 targetWorld,
+                         int keycardLevel,
+                         float storyClock,
+                         const std::vector<std::string>& flags,
+                         const std::vector<std::string>& dialogueLog) {
+    std::ofstream out(path);
+    if (!out) return;
+
+    out << "scene=" << currentSceneId << '\n';
+    out << "player=" << playerWorld.x << ',' << playerWorld.y << '\n';
+    out << "target=" << targetWorld.x << ',' << targetWorld.y << '\n';
+    out << "keycard=" << keycardLevel << '\n';
+    out << "story_clock=" << storyClock << '\n';
+    out << "flags_count=" << flags.size() << '\n';
+    for (const auto& f : flags) out << "flag=" << f << '\n';
+    out << "log_count=" << dialogueLog.size() << '\n';
+    for (const auto& l : dialogueLog) out << "log=" << l << '\n';
+}
+
+static bool ParseVec2(const std::string& raw, Vector2& out) {
+    std::stringstream ss(raw);
+    char comma = 0;
+    if (!(ss >> out.x >> comma >> out.y) || comma != ',') return false;
+    return true;
+}
+
+static bool LoadSnapshot(const std::string& path,
+                         const std::unordered_map<std::string, Scene>& scenes,
+                         std::string& currentSceneId,
+                         Vector2& playerWorld,
+                         Vector2& targetWorld,
+                         int& keycardLevel,
+                         float& storyClock,
+                         std::vector<std::string>& flags,
+                         std::vector<std::string>& dialogueLog) {
+    std::ifstream in(path);
+    if (!in) return false;
+
+    std::string loadedScene = currentSceneId;
+    Vector2 loadedPlayer = playerWorld;
+    Vector2 loadedTarget = targetWorld;
+    int loadedKeycard = keycardLevel;
+    float loadedStoryClock = storyClock;
+    std::vector<std::string> loadedFlags;
+    std::vector<std::string> loadedLog;
+
+    std::string line;
+    while (std::getline(in, line)) {
+        const size_t split = line.find('=');
+        if (split == std::string::npos) continue;
+        const std::string key = line.substr(0, split);
+        const std::string value = line.substr(split + 1);
+        if (key == "scene") loadedScene = value;
+        else if (key == "player") { if (!ParseVec2(value, loadedPlayer)) return false; }
+        else if (key == "target") { if (!ParseVec2(value, loadedTarget)) return false; }
+        else if (key == "keycard") { loadedKeycard = std::stoi(value); }
+        else if (key == "story_clock") { loadedStoryClock = std::stof(value); }
+        else if (key == "flag") loadedFlags.push_back(value);
+        else if (key == "log") loadedLog.push_back(value);
+    }
+
+    if (scenes.find(loadedScene) == scenes.end()) return false;
+    currentSceneId = loadedScene;
+    playerWorld = FindValidTarget(loadedPlayer, scenes.at(currentSceneId), Vector2{0.0f, 0.0f});
+    targetWorld = FindValidTarget(loadedTarget, scenes.at(currentSceneId), playerWorld);
+    keycardLevel = std::max(0, loadedKeycard);
+    storyClock = std::max(0.0f, loadedStoryClock);
+    flags = std::move(loadedFlags);
+    dialogueLog = std::move(loadedLog);
+    return true;
+}
+
 #if SUBNOIR_HAS_RAYLIB
 static void DrawHeroSubmarine3D(float timeSec, float yaw, float pitch, float distance, float cutaway) {
     Camera3D cam{};
@@ -562,6 +639,8 @@ int main() {
     int worldBit = 0;
     float diveIntroTimer = 0.0f;
 
+    const std::string savePath = "save_snapshot.txt";
+
     bool running = true;
     while (running && !WindowShouldClose()) {
         frameCounter++;
@@ -573,6 +652,26 @@ int main() {
         Vector2 mouseNow = GetMousePosition();
         Vector2 mouseDelta = Vector2Subtract(mouseNow, prevMouse);
         prevMouse = mouseNow;
+
+        if (appMode == AppMode::InGame && IsKeyPressed(KEY_F5)) {
+            SaveSnapshot(savePath, currentSceneId, playerWorld, targetWorld, keycardLevel, storyClock, flags, dialogueLog);
+            PushLog(dialogueLog, "System: Snapshot saved (F5).");
+        }
+        if (appMode == AppMode::InGame && IsKeyPressed(KEY_F9)) {
+            if (LoadSnapshot(savePath, scenes, currentSceneId, playerWorld, targetWorld, keycardLevel, storyClock, flags, dialogueLog)) {
+                state = GameState::FreeRoam;
+                activeDialogueNode = -1;
+                dialogueTimer = 0.0f;
+                isFading = false;
+                fadeAlpha = 0.0f;
+                fadeDirection = 1.0f;
+                pendingScene.clear();
+                playerVel = Vector2{0.0f, 0.0f};
+                PushLog(dialogueLog, "System: Snapshot loaded (F9).");
+            } else {
+                PushLog(dialogueLog, "System: No valid snapshot found.");
+            }
+        }
 
         if (appMode == AppMode::MainMenu) {
             Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 20, 360, 54};
@@ -889,7 +988,7 @@ int main() {
 
         DrawRectangle(0, 0, screenWidth, 24, Color{0, 0, 0, 235});
         DrawRectangle(0, screenHeight - 24, screenWidth, 24, Color{0, 0, 0, 235});
-        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom", screenWidth - 560, screenHeight - 18, 12, Color{180, 186, 194, 230});
+        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom | F5 save | F9 load", screenWidth - 760, screenHeight - 18, 12, Color{180, 186, 194, 230});
 
         DrawCinematicPostFX(screenWidth, screenHeight, frameCounter);
         if (isFading) DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));
