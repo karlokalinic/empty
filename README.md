@@ -112,6 +112,33 @@ Napomena: na Windowsu je izlazni fajl `submarine_noir.exe`, ne `./build/submarin
 ./scripts/build.sh
 ```
 
+### Text-only asset workflow (no binary commit needed)
+Ako ti platforma blokira binarne datoteke, **ne commitaj texture** nego ih generiraj lokalno:
+
+```bash
+python3 ./scripts/generate_textures.py
+```
+
+Windows PowerShell:
+```powershell
+python .\scripts\generate_textures.py
+```
+
+`build.sh` i `build.ps1` već automatski pokreću generator prije builda.
+
+### Binary assets fallback (ZIP bundle)
+Ako ti alat ne želi pushati/commitati više `.bmp` fajlova pojedinačno, možeš koristiti ZIP bundle:
+
+```bash
+# Spakiraj sve texture u jedan artefakt
+./scripts/pack_assets.sh
+
+# Raspakiraj bundle natrag u assets/textures
+./scripts/unpack_assets.sh
+```
+
+Bundle lokacija: `assets/bundles/textures_bundle.zip`.
+
 ### Offline/CI fallback (bez raylib)
 Ako okruženje ne može instalirati/povući raylib, projekt se i dalje kompilira uz headless backend.
 Isti build koraci vrijede, ali runtime je no-op render (korisno za provjeru da je kod i arhitektura ispravna).
@@ -219,6 +246,35 @@ Za stabilnu kvalitetu je i dalje najbolje:
 - **Blender blockout + ručni paintover + AI kao pomoćni alat**, ne jedini izvor.
 
 ---
+
+
+## Windows quick fix for errors from your log
+Ako vidiš grešku `Parse error ... "<<<<<<<"` u `CMakeLists.txt`, u fajlu su ostali merge conflict markeri.
+
+1) Provjeri marker linije:
+```powershell
+Select-String -Path .\CMakeLists.txt -Pattern '<<<<<<<|=======|>>>>>>>'
+```
+
+2) Ako nešto vrati, otvori `CMakeLists.txt` i obriši conflict blok (`<<<<<<<`, `=======`, `>>>>>>>`) pa ostavi samo jednu finalnu verziju.
+
+3) Očisti build i ponovno konfiguriraj:
+```powershell
+Remove-Item -Recurse -Force .\build -ErrorAction SilentlyContinue
+cmake -S . -B build
+cmake --build build -j
+.\build\submarine_noir.exe
+```
+
+Napomena:
+- izvršni fajl je `submarine_noir.exe` (nije `submarine_noir.execmake`).
+- Ne upisuj README komentare u isti red s komandama (npr. `./build/submarine_noir# ...`).
+
+Ako je PowerShell policy blokirao skriptu (`running scripts is disabled`), pokreni helper skriptu ovako:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Clean
+```
 
 ## Windows build output explained
 Ako vidiš ovo u PowerShellu:

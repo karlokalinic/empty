@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -13,6 +16,8 @@ struct Choice {
     std::vector<std::string> blockedByFlags;
     int requiredKeycardLevel = 0;
     std::string setFlag;
+    std::string onceFlag;
+    std::string alreadyText;
 };
 
 struct DialogueNode {
@@ -37,6 +42,8 @@ struct Hotspot {
     int grantKeycardLevel = 0;
     std::string grantFlag;
     std::string deniedText;
+    std::string onceFlag;
+    std::string alreadyText;
 };
 
 struct IsoPrism { Vector3 origin; Vector3 size; Color top; Color left; Color right; };
@@ -53,6 +60,11 @@ struct MaterialBank {
     Texture2D rust{};
     Texture2D grate{};
     Texture2D water{};
+    Texture2D hull{};
+    Texture2D pipe{};
+    Texture2D warning{};
+    Texture2D deck{};
+    std::unordered_map<std::string, Texture2D> dynamic;
 };
 
 struct Scene {
@@ -69,7 +81,7 @@ struct Scene {
     std::string onEnterFlag;
 };
 
-enum class AppMode { MainMenu, InGame, Ending };
+enum class AppMode { MainMenu, DiveIntro, InGame, Ending };
 enum class GameState { FreeRoam, Dialogue, Transition };
 
 static bool HasFlag(const std::vector<std::string>& flags, const std::string& f) {
@@ -146,6 +158,61 @@ static void DrawIsoPrism(const IsoPrism& g, const Scene& s, Vector2 origin, floa
     DrawQuad(p101, p111, p110, p100, g.right);
 }
 
+static void DrawIsoPrismTopEdges(const IsoPrism& g, const Scene& s, Vector2 origin, float scale, float angle, Vector2 pan, Color edge) {
+    Vector3 o = g.origin, sz = g.size;
+    Vector2 p001 = ToScreen(s, Vector2{o.x, o.y}, o.z + sz.z, origin, scale, angle, pan);
+    Vector2 p101 = ToScreen(s, Vector2{o.x + sz.x, o.y}, o.z + sz.z, origin, scale, angle, pan);
+    Vector2 p011 = ToScreen(s, Vector2{o.x, o.y + sz.y}, o.z + sz.z, origin, scale, angle, pan);
+    Vector2 p111 = ToScreen(s, Vector2{o.x + sz.x, o.y + sz.y}, o.z + sz.z, origin, scale, angle, pan);
+    DrawLineEx(p001, p101, 2.0f, edge);
+    DrawLineEx(p101, p111, 2.0f, edge);
+    DrawLineEx(p111, p011, 2.0f, edge);
+    DrawLineEx(p011, p001, 2.0f, edge);
+}
+
+static void DrawIsoPrismShadow(const IsoPrism& g, const Scene& s, Vector2 origin, float scale, float angle, Vector2 pan) {
+    if (s.verticalCutaway) return;
+    Vector3 o = g.origin, sz = g.size;
+    Vector2 p00 = ToScreen(s, Vector2{o.x + 0.12f, o.y + 0.12f}, 0.03f, origin, scale, angle, pan);
+    Vector2 p10 = ToScreen(s, Vector2{o.x + sz.x + 0.12f, o.y + 0.12f}, 0.03f, origin, scale, angle, pan);
+    Vector2 p01 = ToScreen(s, Vector2{o.x + 0.12f, o.y + sz.y + 0.12f}, 0.03f, origin, scale, angle, pan);
+    Vector2 p11 = ToScreen(s, Vector2{o.x + sz.x + 0.12f, o.y + sz.y + 0.12f}, 0.03f, origin, scale, angle, pan);
+    DrawQuad(p00, p10, p11, p01, Color{0, 0, 0, static_cast<unsigned char>(26 + std::min(80.0f, g.size.z * 36.0f))});
+}
+
+static void DrawSubmarineHullCutawayFrame(const Scene& s, Vector2 origin, float scale, float angle, Vector2 pan) {
+    if (s.verticalCutaway) return;
+    const float z = 3.4f;
+    Vector2 a = ToScreen(s, Vector2{-7.35f, -6.15f}, z, origin, scale, angle, pan);
+    Vector2 b = ToScreen(s, Vector2{7.35f, -6.15f}, z, origin, scale, angle, pan);
+    Vector2 c = ToScreen(s, Vector2{7.35f, 6.15f}, z, origin, scale, angle, pan);
+    Vector2 d = ToScreen(s, Vector2{-7.35f, 6.15f}, z, origin, scale, angle, pan);
+    DrawLineEx(a, b, 3.0f, Color{152, 174, 194, 175});
+    DrawLineEx(b, c, 3.0f, Color{152, 174, 194, 145});
+    DrawLineEx(c, d, 3.0f, Color{152, 174, 194, 175});
+    DrawLineEx(d, a, 3.0f, Color{152, 174, 194, 145});
+
+    for (int i = 0; i < 9; ++i) {
+        float t = static_cast<float>(i) / 8.0f;
+        float x = -6.8f + t * 13.3f;
+        Vector2 r0 = ToScreen(s, Vector2{x, -6.0f}, z, origin, scale, angle, pan);
+        Vector2 r1 = ToScreen(s, Vector2{x, 6.0f}, z, origin, scale, angle, pan);
+        DrawLineEx(r0, r1, 1.1f, Color{110, 132, 150, 56});
+    }
+}
+
+static void DrawCinematicPostFX(int w, int h, int frameCounter) {
+    for (int i = 0; i < 8; ++i) {
+        int pad = i * 22;
+        unsigned char a = static_cast<unsigned char>(14 - i);
+        if (a > 0) DrawRectangle(pad, pad, w - pad * 2, h - pad * 2, Color{0, 0, 0, a});
+    }
+    DrawRectangle(0, 0, w, 72, Color{0, 0, 0, 112});
+    DrawRectangle(0, h - 64, w, 64, Color{0, 0, 0, 112});
+    unsigned char pulse = static_cast<unsigned char>(18 + 9 * (1.0f + std::sin(frameCounter * 0.033f)));
+    DrawRectangle(0, 0, w, h, Color{14, 28, 42, pulse});
+}
+
 static bool InRect(Vector2 p, const Rectangle& r) {
     return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
 }
@@ -174,25 +241,199 @@ static Texture2D LoadMaterialTexture(const char* path) {
     return LoadTexture(path);
 }
 
-static void DrawDecal(const Scene& scene, const PropDecal& d, const MaterialBank& mats, Vector2 origin, float scale, float angle, Vector2 pan) {
+static void LoadDynamicMaterialTextures(MaterialBank& mats, const std::string& folder) {
+    namespace fs = std::filesystem;
+    if (!fs::exists(folder)) return;
+    for (const auto& e : fs::directory_iterator(folder)) {
+        if (!e.is_regular_file()) continue;
+        const std::string ext = e.path().extension().string();
+        if (ext != ".bmp" && ext != ".png" && ext != ".jpg" && ext != ".jpeg") continue;
+        const std::string key = e.path().stem().string();
+        if (mats.dynamic.find(key) != mats.dynamic.end()) continue;
+        mats.dynamic[key] = LoadMaterialTexture(e.path().string().c_str());
+    }
+}
+
+static void DrawDecal(const Scene& scene, const PropDecal& d, const MaterialBank& mats, Vector2 origin, float scale, float angle, Vector2 pan, float timeSec) {
     const Texture2D* tex = &mats.steel;
+    auto dyn = mats.dynamic.find(d.material);
+    if (dyn != mats.dynamic.end()) tex = &dyn->second;
     if (d.material == "rust") tex = &mats.rust;
     else if (d.material == "grate") tex = &mats.grate;
     else if (d.material == "water") tex = &mats.water;
+    else if (d.material == "hull") tex = &mats.hull;
+    else if (d.material == "pipe") tex = &mats.pipe;
+    else if (d.material == "warning") tex = &mats.warning;
+    else if (d.material == "deck") tex = &mats.deck;
 
     Vector2 p0 = ToScreen(scene, Vector2{d.worldRect.x, d.worldRect.y}, d.z, origin, scale, angle, pan);
     Vector2 p1 = ToScreen(scene, Vector2{d.worldRect.x + d.worldRect.width, d.worldRect.y + d.worldRect.height}, d.z, origin, scale, angle, pan);
     Rectangle dst{std::min(p0.x,p1.x), std::min(p0.y,p1.y), std::fabs(p1.x-p0.x)+1.0f, std::fabs(p1.y-p0.y)+1.0f};
     Rectangle src{0,0, static_cast<float>(tex->width), static_cast<float>(tex->height)};
+    if (d.material == "water") {
+        src.x = 6.0f * std::sin(timeSec * 0.85f);
+        src.y = 3.0f * std::cos(timeSec * 0.62f);
+    }
     DrawTexturePro(*tex, src, dst, Vector2{0,0}, 0.0f, d.tint);
+    if (d.material == "water") {
+        DrawRectangleRec(dst, Color{72, 122, 168, static_cast<unsigned char>(28 + 12 * std::sin(timeSec * 2.1f))});
+    }
 }
 
 static bool ChoiceUnlocked(const Choice& c, const std::vector<std::string>& flags, int keycardLevel) {
     if (keycardLevel < c.requiredKeycardLevel) return false;
+    if (!c.onceFlag.empty() && HasFlag(flags, c.onceFlag)) return false;
     for (const auto& f : c.requiresFlags) if (!HasFlag(flags, f)) return false;
     for (const auto& f : c.blockedByFlags) if (HasFlag(flags, f)) return false;
     return true;
 }
+
+static void PushLog(std::vector<std::string>& dialogueLog, const std::string& line) {
+    dialogueLog.push_back(line);
+    if (dialogueLog.size() > 14) dialogueLog.erase(dialogueLog.begin(), dialogueLog.begin() + 1);
+}
+
+static void SaveSnapshot(const std::string& path,
+                         const std::string& currentSceneId,
+                         Vector2 playerWorld,
+                         Vector2 targetWorld,
+                         int keycardLevel,
+                         float storyClock,
+                         const std::vector<std::string>& flags,
+                         const std::vector<std::string>& dialogueLog) {
+    std::ofstream out(path);
+    if (!out) return;
+
+    out << "scene=" << currentSceneId << '\n';
+    out << "player=" << playerWorld.x << ',' << playerWorld.y << '\n';
+    out << "target=" << targetWorld.x << ',' << targetWorld.y << '\n';
+    out << "keycard=" << keycardLevel << '\n';
+    out << "story_clock=" << storyClock << '\n';
+    out << "flags_count=" << flags.size() << '\n';
+    for (const auto& f : flags) out << "flag=" << f << '\n';
+    out << "log_count=" << dialogueLog.size() << '\n';
+    for (const auto& l : dialogueLog) out << "log=" << l << '\n';
+}
+
+static bool ParseVec2(const std::string& raw, Vector2& out) {
+    std::stringstream ss(raw);
+    char comma = 0;
+    if (!(ss >> out.x >> comma >> out.y) || comma != ',') return false;
+    return true;
+}
+
+static bool LoadSnapshot(const std::string& path,
+                         const std::unordered_map<std::string, Scene>& scenes,
+                         std::string& currentSceneId,
+                         Vector2& playerWorld,
+                         Vector2& targetWorld,
+                         int& keycardLevel,
+                         float& storyClock,
+                         std::vector<std::string>& flags,
+                         std::vector<std::string>& dialogueLog) {
+    std::ifstream in(path);
+    if (!in) return false;
+
+    std::string loadedScene = currentSceneId;
+    Vector2 loadedPlayer = playerWorld;
+    Vector2 loadedTarget = targetWorld;
+    int loadedKeycard = keycardLevel;
+    float loadedStoryClock = storyClock;
+    std::vector<std::string> loadedFlags;
+    std::vector<std::string> loadedLog;
+
+    std::string line;
+    while (std::getline(in, line)) {
+        const size_t split = line.find('=');
+        if (split == std::string::npos) continue;
+        const std::string key = line.substr(0, split);
+        const std::string value = line.substr(split + 1);
+        if (key == "scene") loadedScene = value;
+        else if (key == "player") { if (!ParseVec2(value, loadedPlayer)) return false; }
+        else if (key == "target") { if (!ParseVec2(value, loadedTarget)) return false; }
+        else if (key == "keycard") { loadedKeycard = std::stoi(value); }
+        else if (key == "story_clock") { loadedStoryClock = std::stof(value); }
+        else if (key == "flag") loadedFlags.push_back(value);
+        else if (key == "log") loadedLog.push_back(value);
+    }
+
+    if (scenes.find(loadedScene) == scenes.end()) return false;
+    currentSceneId = loadedScene;
+    playerWorld = FindValidTarget(loadedPlayer, scenes.at(currentSceneId), Vector2{0.0f, 0.0f});
+    targetWorld = FindValidTarget(loadedTarget, scenes.at(currentSceneId), playerWorld);
+    keycardLevel = std::max(0, loadedKeycard);
+    storyClock = std::max(0.0f, loadedStoryClock);
+    flags = std::move(loadedFlags);
+    dialogueLog = std::move(loadedLog);
+    return true;
+}
+
+#if SUBNOIR_HAS_RAYLIB
+static void DrawHeroSubmarine3D(float timeSec, float yaw, float pitch, float distance, float cutaway) {
+    Camera3D cam{};
+    Vector3 target{0.0f, 0.85f, 0.0f};
+    cam.position = Vector3{
+        target.x + std::cos(yaw) * std::cos(pitch) * distance,
+        target.y + std::sin(pitch) * distance,
+        target.z + std::sin(yaw) * std::cos(pitch) * distance
+    };
+    cam.target = target;
+    cam.up = Vector3{0.0f, 1.0f, 0.0f};
+    cam.fovy = 40.0f;
+    cam.projection = CAMERA_PERSPECTIVE;
+
+    BeginMode3D(cam);
+    DrawGrid(26, 1.0f);
+
+    Color hullMain{86, 99, 112, 255};
+    Color hullDark{58, 67, 78, 255};
+    Color accent{167, 89, 70, 255};
+
+    Vector3 tail{-3.4f, 0.85f, 0.0f};
+    Vector3 nose{3.3f, 0.85f, 0.0f};
+    DrawCylinderEx(tail, nose, 1.15f, 1.12f, 30, hullMain);
+    DrawSphere(tail, 1.13f, hullDark);
+    DrawSphere(nose, 1.04f, hullMain);
+
+    DrawCube(Vector3{-0.2f, 2.0f, 0.0f}, 2.15f, 1.7f, 1.5f, hullDark);
+    DrawCube(Vector3{0.25f, 2.75f, 0.0f}, 1.0f, 0.72f, 0.74f, hullMain);
+
+    DrawCube(Vector3{-3.5f, 0.65f, 0.0f}, 0.5f, 0.2f, 2.6f, accent);
+    DrawCube(Vector3{-3.65f, 0.65f, 1.08f}, 0.55f, 0.2f, 0.62f, Color{178, 113, 89, 255});
+    DrawCube(Vector3{-3.65f, 0.65f, -1.08f}, 0.55f, 0.2f, 0.62f, Color{178, 113, 89, 255});
+
+    DrawCube(Vector3{0.2f, 0.2f, 0.0f}, 5.2f, 0.22f, 1.7f, hullDark);
+    DrawCube(Vector3{0.5f, 0.22f, 0.0f}, 4.4f, 0.2f, 2.25f, hullDark);
+
+    if (cutaway > 0.01f) {
+        float openZ = 1.12f + 1.25f * cutaway;
+        DrawCube(Vector3{-0.1f, 1.02f, openZ}, 5.0f, 0.16f, 0.16f, Color{168, 182, 194, 255});
+        DrawCube(Vector3{-0.1f, 0.58f, openZ}, 5.0f, 0.16f, 0.16f, Color{136, 152, 166, 255});
+        for (int i = 0; i < 5; ++i) {
+            float x = -1.75f + i * 1.15f;
+            DrawCube(Vector3{x, 0.8f, openZ}, 0.16f, 0.6f, 0.14f, Color{122, 136, 148, 255});
+            DrawCube(Vector3{x, 0.46f, 0.45f}, 0.85f, 0.2f, 0.45f, Color{90, 108, 120, 255});
+        }
+    }
+
+    DrawCube(Vector3{2.55f, 0.95f, 1.15f}, 0.95f, 0.3f, 0.2f, accent);
+    DrawCube(Vector3{2.55f, 0.95f, -1.15f}, 0.95f, 0.3f, 0.2f, accent);
+
+    for (int i = 0; i < 4; ++i) {
+        float x = -0.8f + i * 1.35f;
+        DrawSphere(Vector3{x, 1.42f, 1.0f}, 0.2f, Color{106, 180, 205, 245});
+        DrawSphere(Vector3{x, 1.42f, -1.0f}, 0.2f, Color{106, 180, 205, 245});
+    }
+
+    for (int i = 0; i < 10; ++i) {
+        float fi = static_cast<float>(i);
+        Vector3 bubble{2.8f + 0.28f * fi, 0.2f + std::fmod(timeSec * 0.9f + fi * 0.55f, 2.7f), -1.4f + 0.18f * fi};
+        DrawSphere(bubble, 0.04f + 0.008f * (i % 3), Color{162, 196, 210, 130});
+    }
+
+    EndMode3D();
+}
+#endif
 
 int main() {
     const int screenWidth = 1366;
@@ -207,6 +448,11 @@ int main() {
     mats.rust = LoadMaterialTexture("assets/textures/rust_panel.bmp");
     mats.grate = LoadMaterialTexture("assets/textures/grate_floor.bmp");
     mats.water = LoadMaterialTexture("assets/textures/water_view.bmp");
+    mats.hull = LoadMaterialTexture("assets/textures/hull_brushed.bmp");
+    mats.pipe = LoadMaterialTexture("assets/textures/pipe_oil.bmp");
+    mats.warning = LoadMaterialTexture("assets/textures/warning_paint.bmp");
+    mats.deck = LoadMaterialTexture("assets/textures/deck_plate.bmp");
+    LoadDynamicMaterialTextures(mats, "assets/textures");
 
     std::unordered_map<std::string, Scene> scenes;
 
@@ -214,10 +460,10 @@ int main() {
         "control_room", false, Color{14, 20, 26, 255}, Rectangle{-7.2f, -6.0f, 14.4f, 12.0f},
         {Rectangle{-1.2f, -1.7f, 2.4f, 3.4f}, Rectangle{3.0f, -3.0f, 1.7f, 1.9f}, Rectangle{-2.5f, 2.1f, 2.1f, 1.5f}},
         {
-            {Rectangle{2.8f, -2.8f, 1.7f, 1.6f}, "Command Console", 1},
+            {Rectangle{2.8f, -2.8f, 1.7f, 1.6f}, "Command Console", 1, "", {0, 0}, false, {0, 0}, 0, "", 0, "", "", "seen_console", "Console already reviewed."},
             {Rectangle{-6.8f, -0.5f, 0.9f, 2.2f}, "Bulkhead Door", -1, "engine_corridor", {4.8f, 0.2f}},
-            {Rectangle{-2.4f, 2.1f, 1.8f, 1.3f}, "Captain's Chair", 4},
-            {Rectangle{4.8f, 2.8f, 1.0f, 1.0f}, "Security Locker", -1, "", {0, 0}, false, {0,0}, 0, "", 1, "got_keycard_lv1", "Locker is jammed."},
+            {Rectangle{-2.4f, 2.1f, 1.8f, 1.3f}, "Captain's Chair", 4, "", {0, 0}, false, {0, 0}, 0, "", 0, "", "", "seen_captain_chair", "Only cold metal remains."},
+            {Rectangle{4.8f, 2.8f, 1.0f, 1.0f}, "Security Locker", -1, "", {0, 0}, false, {0,0}, 0, "", 1, "got_keycard_lv1", "Locker is jammed.", "looted_locker", "Locker is empty."},
             {Rectangle{5.6f, -4.4f, 1.0f, 1.0f}, "Command Hatch", 11, "", {0,0}, false, {0,0}, 2, "", 0, "", "Requires Keycard L2"},
             {Rectangle{0.8f, 4.5f, 1.2f, 1.2f}, "Lift to Bunker Stack", -1, "vertical_bunker", {0.0f, 2.0f}},
         },
@@ -226,6 +472,10 @@ int main() {
             {{-1.2f, -1.7f, 0.2f}, {2.4f, 3.4f, 0.8f}, Color{222, 44, 51, 255}, Color{147, 24, 33, 255}, Color{181, 31, 41, 255}},
             {{3.0f, -3.0f, 0.2f}, {1.7f, 1.9f, 1.8f}, Color{162, 140, 121, 255}, Color{106, 90, 77, 255}, Color{130, 110, 94, 255}},
             {{-5.8f, -4.2f, 0.2f}, {0.45f, 8.0f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
+            {{-6.2f, 3.9f, 0.2f}, {4.0f, 0.55f, 1.25f}, Color{106, 117, 128, 255}, Color{68, 76, 84, 255}, Color{82, 92, 102, 255}},
+            {{1.8f, 3.6f, 0.2f}, {2.7f, 0.65f, 1.1f}, Color{124, 136, 147, 255}, Color{78, 88, 96, 255}, Color{94, 106, 114, 255}},
+            {{-3.4f, -5.2f, 0.2f}, {1.0f, 1.0f, 2.1f}, Color{88, 102, 116, 255}, Color{57, 66, 75, 255}, Color{67, 78, 88, 255}},
+            {{4.0f, -0.2f, 0.2f}, {0.55f, 3.6f, 0.95f}, Color{179, 126, 88, 255}, Color{118, 84, 59, 255}, Color{139, 98, 68, 255}},
         },
         {
             {{-7.2f, -6.0f, 0.2f}, {14.4f, 0.85f, 3.2f}, Color{139, 143, 146, 255}, Color{95, 98, 102, 255}, Color{112, 115, 120, 255}},
@@ -235,7 +485,15 @@ int main() {
             {"steel", Rectangle{-7.0f,-5.8f,13.8f,0.45f}, 2.9f, Color{255,255,255,90}},
             {"grate", Rectangle{-6.6f,-1.2f,5.2f,0.35f}, 0.22f, Color{255,255,255,95}},
             {"rust", Rectangle{-5.9f,-4.1f,0.4f,8.0f}, 0.65f, Color{255,255,255,95}},
-            {"water", Rectangle{-6.4f,-5.75f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}}
+            {"water", Rectangle{-6.4f,-5.75f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}},
+            {"steel", Rectangle{-6.3f,3.95f,3.9f,0.5f}, 1.2f, Color{255,255,255,92}},
+            {"rust", Rectangle{3.95f,-0.3f,0.55f,3.7f}, 0.62f, Color{255,255,255,92}},
+            {"grate", Rectangle{-1.2f,-1.7f,2.4f,3.4f}, 0.23f, Color{255,255,255,72}},
+            {"steel", Rectangle{1.8f,3.6f,2.7f,0.65f}, 1.1f, Color{255,255,255,88}},
+            {"hull", Rectangle{-7.2f,-6.0f,14.4f,12.0f}, 3.05f, Color{255,255,255,65}},
+            {"warning", Rectangle{-0.9f,-1.2f,1.8f,0.45f}, 0.24f, Color{255,255,255,105}},
+            {"pipe", Rectangle{4.0f,-0.2f,0.55f,3.6f}, 1.22f, Color{255,255,255,95}},
+            {"deck", Rectangle{-6.8f,-5.7f,13.6f,11.4f}, 0.21f, Color{255,255,255,55}}
         },
         "CONTROL ROOM // pressure, steel, failing trust", "visited_control"
     };
@@ -245,13 +503,16 @@ int main() {
         {Rectangle{-1.4f, -0.6f, 2.0f, 3.2f}, Rectangle{-4.6f, -2.7f, 2.4f, 1.6f}, Rectangle{2.7f, -2.1f, 1.9f, 1.5f}},
         {
             {Rectangle{6.2f, -0.4f, 1.1f, 1.8f}, "Return to Control", -1, "control_room", {-5.4f, 0.2f}},
-            {Rectangle{-2.8f, -1.7f, 2.0f, 1.6f}, "Maintenance Hatch", 7},
-            {Rectangle{1.4f, 2.1f, 1.9f, 1.4f}, "Crew Journal", 10, "", {0, 0}, false, {0,0}, 0, "", 0, "got_old_blueprint", ""},
+            {Rectangle{-2.8f, -1.7f, 2.0f, 1.6f}, "Maintenance Hatch", 7, "", {0, 0}, false, {0, 0}, 0, "", 0, "", "", "checked_hatch", "Hatch already forced once."},
+            {Rectangle{1.4f, 2.1f, 1.9f, 1.4f}, "Crew Journal", 10, "", {0, 0}, false, {0,0}, 0, "", 0, "got_old_blueprint", "", "read_journal", "No unread pages left."},
         },
         {
             {{-7.8f, -5.3f, 0}, {15.6f, 10.8f, 0.2f}, Color{58, 32, 34, 255}, Color{39, 22, 24, 255}, Color{46, 26, 28, 255}},
             {{-1.4f, -0.6f, 0.2f}, {2.0f, 3.2f, 0.8f}, Color{226, 40, 47, 255}, Color{151, 23, 29, 255}, Color{182, 29, 35, 255}},
             {{-6.2f, -4.3f, 0.2f}, {0.45f, 8.1f, 0.45f}, Color{199, 123, 81, 255}, Color{128, 80, 53, 255}, Color{153, 96, 64, 255}},
+            {{3.6f, -4.0f, 0.2f}, {0.65f, 6.8f, 0.95f}, Color{121, 87, 79, 255}, Color{78, 54, 49, 255}, Color{96, 67, 60, 255}},
+            {{-4.3f, 3.2f, 0.2f}, {3.5f, 0.55f, 1.05f}, Color{113, 97, 88, 255}, Color{72, 62, 56, 255}, Color{90, 76, 69, 255}},
+            {{1.2f, -3.8f, 0.2f}, {0.9f, 0.9f, 2.0f}, Color{90, 80, 74, 255}, Color{58, 50, 46, 255}, Color{69, 60, 55, 255}},
         },
         {
             {{-7.8f, -5.3f, 0.2f}, {15.6f, 0.85f, 3.0f}, Color{141, 95, 74, 255}, Color{92, 63, 49, 255}, Color{113, 77, 60, 255}},
@@ -260,7 +521,15 @@ int main() {
         {
             {"rust", Rectangle{-6.5f,-4.3f,0.5f,8.1f}, 0.62f, Color{255,255,255,100}},
             {"grate", Rectangle{-2.5f,-0.3f,4.6f,0.35f}, 0.22f, Color{255,255,255,96}},
-            {"water", Rectangle{-6.9f,-5.0f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}}
+            {"water", Rectangle{-6.9f,-5.0f,2.2f,0.45f}, 1.7f, Color{255,255,255,120}},
+            {"steel", Rectangle{3.5f,-3.9f,0.7f,6.6f}, 0.62f, Color{255,255,255,95}},
+            {"grate", Rectangle{-4.2f,3.2f,3.3f,0.4f}, 0.25f, Color{255,255,255,92}},
+            {"steel", Rectangle{-1.4f,-0.6f,2.0f,3.2f}, 0.9f, Color{255,255,255,84}},
+            {"rust", Rectangle{1.2f,-3.8f,0.9f,0.9f}, 1.2f, Color{255,255,255,98}},
+            {"hull", Rectangle{-7.8f,-5.3f,15.6f,10.8f}, 3.0f, Color{255,255,255,58}},
+            {"warning", Rectangle{-2.2f,-0.5f,3.1f,0.35f}, 0.24f, Color{255,255,255,102}},
+            {"pipe", Rectangle{3.6f,-4.0f,0.65f,6.8f}, 1.25f, Color{255,255,255,100}},
+            {"deck", Rectangle{-7.3f,-5.0f,14.9f,10.1f}, 0.2f, Color{255,255,255,50}}
         },
         "ENGINE CORRIDOR // rust and red emergency strips", "visited_engine"
     };
@@ -268,18 +537,20 @@ int main() {
     scenes["vertical_bunker"] = Scene{
         "vertical_bunker", true, Color{10, 14, 20, 255}, Rectangle{-7.0f, -14.0f, 14.0f, 16.0f},
         {
-            Rectangle{-7.0f, -1.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -5.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -9.8f, 14.0f, 0.6f}, Rectangle{-7.0f, -13.8f, 14.0f, 0.6f},
-            Rectangle{-2.2f, -10.4f, 2.2f, 0.6f}, Rectangle{2.0f, -6.4f, 2.0f, 0.6f}
+            Rectangle{-7.0f, -1.8f, 4.5f, 0.6f}, Rectangle{-1.6f, -1.8f, 8.6f, 0.6f},
+            Rectangle{-7.0f, -5.8f, 4.5f, 0.6f}, Rectangle{-1.6f, -5.8f, 3.2f, 0.6f}, Rectangle{4.1f, -5.8f, 2.9f, 0.6f},
+            Rectangle{-7.0f, -9.8f, 4.5f, 0.6f}, Rectangle{-1.6f, -9.8f, 8.6f, 0.6f},
+            Rectangle{-7.0f, -13.8f, 4.5f, 0.6f}, Rectangle{-1.6f, -13.8f, 6.8f, 0.6f}
         },
         {
-            {Rectangle{-5.8f, -2.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -6.2f}},
-            {Rectangle{-5.8f, -6.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -10.2f}},
-            {Rectangle{-5.8f, -10.4f, 1.8f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.0f, -13.5f}},
-            {Rectangle{-3.0f, -10.8f, 1.4f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.2f, -6.0f}},
-            {Rectangle{-3.0f, -6.8f, 1.4f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.2f, -2.0f}},
-            {Rectangle{3.8f, -2.4f, 1.6f, 1.0f}, "Key Office", 12, "", {0,0}, false, {0,0}, 0, "", 2, "got_keycard_lv2", ""},
-            {Rectangle{3.6f, -10.4f, 1.6f, 1.0f}, "Locked Cache", 13, "", {0,0}, false, {0,0}, 2, "", 0, "got_mechanical_key", "Requires Keycard L2"},
-            {Rectangle{5.8f, -13.5f, 1.1f, 1.1f}, "Return to Command", -1, "control_room", {-4.2f, 0.0f}},
+            {Rectangle{-5.9f, -2.4f, 2.0f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.2f, -6.45f}},
+            {Rectangle{-5.9f, -6.4f, 2.0f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.2f, -10.45f}},
+            {Rectangle{-5.9f, -10.4f, 2.0f, 1.0f}, "Stairs Down", -1, "", {0, 0}, true, {-5.2f, -13.45f}},
+            {Rectangle{-3.2f, -10.8f, 1.6f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.1f, -6.45f}},
+            {Rectangle{-3.2f, -6.8f, 1.6f, 1.0f}, "Stairs Up", -1, "", {0,0}, true, {-2.1f, -2.45f}},
+            {Rectangle{3.8f, -2.4f, 1.6f, 1.0f}, "Key Office", 12, "", {0,0}, false, {0,0}, 0, "", 2, "got_keycard_lv2", "", "collected_keycard_l2", "No more keycards here."},
+            {Rectangle{3.6f, -10.4f, 1.6f, 1.0f}, "Locked Cache", 13, "", {0,0}, false, {0,0}, 2, "", 0, "got_mechanical_key", "Requires Keycard L2", "opened_locked_cache", "Cache is already stripped."},
+            {Rectangle{5.5f, -13.5f, 1.4f, 1.1f}, "Return to Command", -1, "control_room", {-4.2f, 0.0f}},
         },
         {
             {{-7, -2.0f, 0.0f}, {14, 0.8f, 1.3f}, Color{84, 96, 106, 255}, Color{56, 64, 72, 255}, Color{66, 76, 86, 255}},
@@ -296,7 +567,11 @@ int main() {
         {
             {"steel", Rectangle{-6.8f,-13.9f,13.6f,0.5f}, 1.2f, Color{255,255,255,90}},
             {"grate", Rectangle{-5.5f,-10.0f,3.0f,0.35f}, 0.25f, Color{255,255,255,95}},
-            {"rust", Rectangle{3.7f,-10.6f,1.7f,1.2f}, 0.35f, Color{255,255,255,95}}
+            {"rust", Rectangle{3.7f,-10.6f,1.7f,1.2f}, 0.35f, Color{255,255,255,95}},
+            {"steel", Rectangle{-6.8f,-9.9f,13.6f,0.5f}, 1.2f, Color{255,255,255,82}},
+            {"grate", Rectangle{-5.6f,-6.0f,3.4f,0.35f}, 0.25f, Color{255,255,255,92}},
+            {"warning", Rectangle{-5.9f,-10.4f,2.0f,1.0f}, 0.3f, Color{255,255,255,98}},
+            {"deck", Rectangle{-6.8f,-13.9f,13.6f,11.8f}, 0.15f, Color{255,255,255,45}}
         },
         "VERTICAL BUNKER // layered decks, stairs, locked sectors", "visited_bunker"
     };
@@ -322,8 +597,8 @@ int main() {
             {"Stay and hold command.", 16, {}, {}, 0, ""},
             {"Abort.", -1, {}, {}, 0, ""}
         }, 10.0f, 17, "hesitated_final_gate"}},
-        {12, {"Officer", "You found us. This gives you Keycard Level 2.", {{"Take card.", -1, {}, {}, 0, "got_keycard_lv2"}}}},
-        {13, {"Cache", "Inside is an old mechanical key and emergency codes.", {{"Take key.", -1, {}, {}, 0, "got_mechanical_key"}}}},
+        {12, {"Officer", "You found us. This gives you Keycard Level 2.", {{"Take card.", -1, {}, {}, 0, "got_keycard_lv2", "took_card_dialog", "Card already taken."}}}},
+        {13, {"Cache", "Inside is an old mechanical key and emergency codes.", {{"Take key.", -1, {}, {}, 0, "got_mechanical_key", "took_key_dialog", "Nothing else inside."}}}},
         {14, {"Ops AI", "Then you already know this was planned long ago.", {{"Use that intel now.", -1, {}, {}, 0, "bunker_intel_used"}}}},
         {15, {"Ending", "You evacuate with survivors. The submarine sleeps beneath ice.", {{"END: Evacuation", -1, {}, {}, 0, "ending_evac"}}}},
         {16, {"Ending", "You stay behind, lock every hatch, and disappear with the hull.", {{"END: Last Captain", -1, {}, {}, 0, "ending_last_captain"}}}},
@@ -362,6 +637,9 @@ int main() {
     int frameCounter = 0;
     float storyClock = 0.0f;
     int worldBit = 0;
+    float diveIntroTimer = 0.0f;
+
+    const std::string savePath = "save_snapshot.txt";
 
     bool running = true;
     while (running && !WindowShouldClose()) {
@@ -375,10 +653,30 @@ int main() {
         Vector2 mouseDelta = Vector2Subtract(mouseNow, prevMouse);
         prevMouse = mouseNow;
 
+        if (appMode == AppMode::InGame && IsKeyPressed(KEY_F5)) {
+            SaveSnapshot(savePath, currentSceneId, playerWorld, targetWorld, keycardLevel, storyClock, flags, dialogueLog);
+            PushLog(dialogueLog, "System: Snapshot saved (F5).");
+        }
+        if (appMode == AppMode::InGame && IsKeyPressed(KEY_F9)) {
+            if (LoadSnapshot(savePath, scenes, currentSceneId, playerWorld, targetWorld, keycardLevel, storyClock, flags, dialogueLog)) {
+                state = GameState::FreeRoam;
+                activeDialogueNode = -1;
+                dialogueTimer = 0.0f;
+                isFading = false;
+                fadeAlpha = 0.0f;
+                fadeDirection = 1.0f;
+                pendingScene.clear();
+                playerVel = Vector2{0.0f, 0.0f};
+                PushLog(dialogueLog, "System: Snapshot loaded (F9).");
+            } else {
+                PushLog(dialogueLog, "System: No valid snapshot found.");
+            }
+        }
+
         if (appMode == AppMode::MainMenu) {
             Rectangle startBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f - 20, 360, 54};
             Rectangle quitBtn{screenWidth * 0.5f - 180, screenHeight * 0.5f + 50, 360, 48};
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) appMode = AppMode::InGame;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, startBtn)) { appMode = AppMode::DiveIntro; diveIntroTimer = 0.0f; }
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, quitBtn)) running = false;
 
             BeginDrawing();
@@ -387,7 +685,7 @@ int main() {
             for (int y = 0; y < screenHeight; y += 3) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, static_cast<unsigned char>(8 + y % 8)});
             DrawRectangle(0, 0, screenWidth, 170, Color{130, 20, 28, 20});
             DrawText("SUBMARINE NOIR", screenWidth / 2 - 180, 132, 48, Color{236, 224, 210, 255});
-            DrawText("Vertical stacks, keys, timed choices, branching endings", screenWidth / 2 - 280, 188, 22, Color{177, 191, 204, 240});
+            DrawText("Unified hull cutaway: exterior intro feeds interior gameplay", screenWidth / 2 - 325, 188, 22, Color{177, 191, 204, 240});
             DrawText("World logic: every major state resolves to 0/1 (binary bit)", screenWidth / 2 - 285, 218, 16, Color{155, 175, 192, 230});
 
             bool hoverStart = CheckCollisionPointRec(mouseNow, startBtn);
@@ -395,10 +693,44 @@ int main() {
             DrawRectangleRec(startBtn, hoverStart ? Color{72, 88, 102, 255} : Color{48, 62, 74, 255});
             DrawRectangleLinesEx(startBtn, 2.0f, Color{168, 188, 206, 230});
             DrawText("START DIVE", static_cast<int>(startBtn.x + 108), static_cast<int>(startBtn.y + 15), 24, RAYWHITE);
+
             DrawRectangleRec(quitBtn, hoverQuit ? Color{80, 50, 50, 255} : Color{58, 38, 38, 255});
             DrawRectangleLinesEx(quitBtn, 2.0f, Color{190, 143, 143, 230});
             DrawText("QUIT", static_cast<int>(quitBtn.x + 145), static_cast<int>(quitBtn.y + 13), 22, RAYWHITE);
             EndDrawing();
+            continue;
+        }
+
+        if (appMode == AppMode::DiveIntro) {
+            diveIntroTimer += dt;
+            float t = std::clamp(diveIntroTimer / 5.0f, 0.0f, 1.0f);
+
+            BeginDrawing();
+            ClearBackground(Color{5, 9, 14, 255});
+            DrawRectangle(0, 0, screenWidth, screenHeight, Color{7, 15, 24, 255});
+#if SUBNOIR_HAS_RAYLIB
+            float yaw = 0.78f * (1.0f - t) + 0.05f * t;
+            float pitch = 0.42f * (1.0f - t) + 0.08f * t;
+            float dist = 14.0f * (1.0f - t) + 8.6f * t;
+            float cutaway = std::clamp((t - 0.35f) / 0.65f, 0.0f, 1.0f);
+            DrawHeroSubmarine3D(storyClock, yaw, pitch, dist, cutaway);
+#else
+            DrawRectangle(180, 120, screenWidth - 360, screenHeight - 240, Color{25, 34, 45, 255});
+            DrawText("Intro 3D submarine requires raylib runtime.", 240, 210, 30, RAYWHITE);
+#endif
+            DrawRectangle(0, 0, screenWidth, 90, Color{4, 7, 12, 180});
+            DrawText("DIVE SEQUENCE // Exterior to interior cutaway", 24, 26, 28, Color{215, 224, 230, 240});
+            DrawRectangle(24, 70, static_cast<int>((screenWidth - 48) * t), 7, Color{108, 170, 210, 220});
+            DrawRectangleLinesEx(Rectangle{24, 70, static_cast<float>(screenWidth - 48), 7}, 1.0f, Color{150, 196, 220, 170});
+            if (t > 0.72f) {
+                DrawRectangle(0, 0, screenWidth, screenHeight, Color{8, 12, 18, static_cast<unsigned char>(std::clamp((t - 0.72f) * 255.0f, 0.0f, 220.0f))});
+            }
+            EndDrawing();
+
+            if (diveIntroTimer >= 5.0f) {
+                appMode = AppMode::InGame;
+                cameraAngle = 0.08f;
+            }
             continue;
         }
 
@@ -447,15 +779,21 @@ int main() {
                     clickedHotspot = true;
 
                     if (keycardLevel < h.requiredKeycardLevel || (!h.requiredFlag.empty() && !HasFlag(flags, h.requiredFlag))) {
-                        if (!h.deniedText.empty()) dialogueLog.push_back("LOCKED: " + h.deniedText);
+                        if (!h.deniedText.empty()) PushLog(dialogueLog, "LOCKED: " + h.deniedText);
+                        break;
+                    }
+
+                    if (!h.onceFlag.empty() && HasFlag(flags, h.onceFlag)) {
+                        PushLog(dialogueLog, h.alreadyText.empty() ? (h.label + " already handled.") : h.alreadyText);
                         break;
                     }
 
                     if (h.grantKeycardLevel > 0) {
                         keycardLevel = std::max(keycardLevel, h.grantKeycardLevel);
-                        dialogueLog.push_back("Acquired Keycard Level " + std::to_string(h.grantKeycardLevel));
+                        PushLog(dialogueLog, "Acquired Keycard Level " + std::to_string(h.grantKeycardLevel));
                     }
                     SetFlag(flags, h.grantFlag);
+                    SetFlag(flags, h.onceFlag);
 
                     if (h.movePlayer) {
                         targetWorld = FindValidTarget(h.moveTarget, scene, playerWorld);
@@ -515,18 +853,18 @@ int main() {
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mouseNow, btn)) {
                     const Choice& pick = node.choices[i];
                     if (!ChoiceUnlocked(pick, flags, keycardLevel)) {
-                        dialogueLog.push_back("Choice locked.");
+                        PushLog(dialogueLog, pick.alreadyText.empty() ? "Choice locked." : pick.alreadyText);
                         break;
                     }
 
                     SetFlag(flags, pick.setFlag);
+                    SetFlag(flags, pick.onceFlag);
                     if (pick.setFlag == "ending_evac") endingText = "You evacuated with survivors.";
                     if (pick.setFlag == "ending_last_captain") endingText = "You stayed and sealed the hull.";
                     if (pick.setFlag == "ending_drowned") endingText = "You hesitated. Flood took the decks.";
 
-                    dialogueLog.push_back(node.speaker + ": " + node.line);
-                    dialogueLog.push_back("YOU: " + pick.text);
-                    if (dialogueLog.size() > 14) dialogueLog.erase(dialogueLog.begin(), dialogueLog.begin() + 2);
+                    PushLog(dialogueLog, node.speaker + ": " + node.line);
+                    PushLog(dialogueLog, "YOU: " + pick.text);
 
                     activeDialogueNode = pick.nextNode;
                     if (HasFlag(flags, "ending_evac") || HasFlag(flags, "ending_last_captain") || HasFlag(flags, "ending_drowned")) {
@@ -564,8 +902,11 @@ int main() {
         BeginDrawing();
         ClearBackground(BLACK);
         DrawRectangle(0, 0, screenWidth, screenHeight, scene.background);
+        DrawRectangle(0, 0, screenWidth, screenHeight / 2, Color{28, 40, 56, 24});
+        DrawRectangle(0, screenHeight / 2, screenWidth, screenHeight / 2, Color{5, 8, 14, 38});
 
         if (!scene.verticalCutaway) {
+            DrawSubmarineHullCutawayFrame(scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
             for (int i = -10; i <= 10; ++i) {
                 Vector2 a = ToScreen(scene, Vector2{-9.5f, static_cast<float>(i)}, 0.21f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
                 Vector2 b = ToScreen(scene, Vector2{9.5f, static_cast<float>(i)}, 0.21f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
@@ -577,19 +918,26 @@ int main() {
         }
 
         float playerDepth = playerWorld.x + playerWorld.y;
-        for (const auto& g : scene.solids) if (DepthOf(g) <= playerDepth || scene.verticalCutaway) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        for (const auto& g : scene.solids) {
+            if (!scene.verticalCutaway) DrawIsoPrismShadow(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+            if (DepthOf(g) <= playerDepth || scene.verticalCutaway) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        }
 
         Vector2 p = ToScreen(scene, playerWorld, 0.25f, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         float bob = std::sin(frameCounter * 0.15f) * 1.6f * std::min(1.0f, Vector2Length(playerVel));
-        DrawCircleV(Vector2{p.x + 9, p.y + 8}, 12.0f, Color{8, 8, 12, 120});
-        DrawCircleV(Vector2{p.x, p.y + bob}, 12.5f, Color{235, 230, 220, 255});
-        DrawCircleV(Vector2{p.x, p.y - 2 + bob}, 8.3f, Color{20, 20, 25, 255});
+        DrawCircleV(Vector2{p.x + 10, p.y + 9}, 14.0f, Color{6, 8, 12, 145});
+        DrawCircleV(Vector2{p.x + 4, p.y + 5 + bob}, 11.5f, Color{172, 183, 191, 120});
+        DrawCircleV(Vector2{p.x, p.y + bob}, 12.5f, Color{228, 232, 234, 255});
+        DrawCircleV(Vector2{p.x, p.y - 2 + bob}, 8.3f, Color{18, 22, 29, 255});
 
         if (!scene.verticalCutaway) {
             for (const auto& g : scene.solids) if (DepthOf(g) > playerDepth) DrawIsoPrism(g, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
         }
-        for (const auto& w : scene.wallsAlways) DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
-        for (const auto& d : scene.decals) DrawDecal(scene, d, mats, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+        for (const auto& w : scene.wallsAlways) {
+            DrawIsoPrism(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan);
+            if (!scene.verticalCutaway) DrawIsoPrismTopEdges(w, scene, baseOrigin, cameraZoom, cameraAngle, cameraPan, Color{182, 198, 212, 195});
+        }
+        for (const auto& d : scene.decals) DrawDecal(scene, d, mats, baseOrigin, cameraZoom, cameraAngle, cameraPan, storyClock);
 
         if (scene.verticalCutaway) {
             for (int y = 0; y < screenHeight; y += 4) DrawRectangle(0, y, screenWidth, 1, Color{0, 0, 0, 10});
@@ -640,8 +988,9 @@ int main() {
 
         DrawRectangle(0, 0, screenWidth, 24, Color{0, 0, 0, 235});
         DrawRectangle(0, screenHeight - 24, screenWidth, 24, Color{0, 0, 0, 235});
-        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom", screenWidth - 560, screenHeight - 18, 12, Color{180, 186, 194, 230});
+        DrawText("LMB interact | RMB pan (iso) | MMB rotate (iso) | Wheel zoom | F5 save | F9 load", screenWidth - 760, screenHeight - 18, 12, Color{180, 186, 194, 230});
 
+        DrawCinematicPostFX(screenWidth, screenHeight, frameCounter);
         if (isFading) DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, fadeAlpha));
         EndDrawing();
     }
@@ -650,6 +999,11 @@ int main() {
     UnloadTexture(mats.rust);
     UnloadTexture(mats.grate);
     UnloadTexture(mats.water);
+    UnloadTexture(mats.hull);
+    UnloadTexture(mats.pipe);
+    UnloadTexture(mats.warning);
+    UnloadTexture(mats.deck);
+    for (auto& kv : mats.dynamic) UnloadTexture(kv.second);
     CloseWindow();
     return 0;
 }

@@ -35,6 +35,10 @@ bool IsMouseButtonDown(int) {
     return false;
 }
 
+bool IsKeyPressed(int) {
+    return false;
+}
+
 float GetMouseWheelMove() {
     return 0.0f;
 }
@@ -101,3 +105,4 @@ const char* TextFormat(const char* text, ...) {
     return buffer;
 }
 
+#endif
